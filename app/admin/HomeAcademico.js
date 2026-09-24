@@ -25,7 +25,8 @@ const getTokenAsync = async () => {
     try {
       const sessionToken = sessionStorage.getItem(TOKEN_KEY);
       if (sessionToken) return sessionToken;
-      localStorage.removeItem(TOKEN_KEY);
+      const localToken = localStorage.getItem(TOKEN_KEY);
+      if (localToken) return localToken;
       return null;
     } catch (e) {
       return null;
@@ -1032,8 +1033,15 @@ const adminActions = [
                       <Text style={styles.telegramBodyText}>Tu cuenta está vinculada con Telegram</Text>
                       {telegramUsername ? <Text style={styles.telegramUsernameStyled}>@{telegramUsername}</Text> : null}
                     </View>
-                    <TouchableOpacity style={[styles.telegramBlueBtn, { backgroundColor: COLORS.accent }]} onPress={() => {
-                      axios.put(`${API_BASE_URL}/unlink-telegram`, {}, { headers: { Authorization: `Bearer ${TOKEN_KEY}` } }).catch(() => {});
+                    <TouchableOpacity style={[styles.telegramBlueBtn, { backgroundColor: COLORS.accent }]} onPress={async () => {
+                      try {
+                        const token = await getTokenAsync();
+                        if (token) {
+                          await axios.put(`${API_BASE_URL}/unlink-telegram`, {}, { headers: { Authorization: `Bearer ${token}` } });
+                        }
+                      } catch (e) {
+                        console.warn('[HomeAcademico] Error desvinculando Telegram:', e.message);
+                      }
                       setIsTelegramLinked(false);
                       setTelegramUsername('');
                     }}>
