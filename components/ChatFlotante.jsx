@@ -1,0 +1,478 @@
+import React, { useState, useRef, useEffect } from 'react';
+import {
+  View, Text, TextInput, TouchableOpacity,
+  FlatList, KeyboardAvoidingView, Platform, StatusBar,
+} from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
+
+const COLORS = {
+  primary: '#C44200', primaryLight: '#FFEDD5',
+  accent: '#EF4444', secondary: '#4B5563',
+  surface: '#FFFFFF', background: '#F4F7F9',
+  border: '#E6E9EF', textPrimary: '#1F2937',
+  textSecondary: '#6B7280', textTertiary: '#9CA3AF',
+  white: '#FFFFFF',
+};
+
+const QUICK_ACTIONS = [
+  { label: 'Crear evento', icon: '➕', action: 'Crear evento' },
+  { label: 'Cancelar', icon: '✖️', action: 'Cancelar' },
+  { label: 'Resumen del día', icon: '📋', action: 'Resumen del día' },
+  { label: 'Pendientes', icon: '⏳', action: 'Qué tengo pendiente' },
+  { label: 'Eventos cercanos', icon: '📅', action: 'Eventos cercanos' },
+  { label: 'Sugerencias', icon: '💡', action: 'Sugerencias' },
+  { label: 'Reporte', icon: '📊', action: 'Reporte del evento' },
+  { label: 'Ayuda', icon: '❓', action: 'ayuda' },
+];
+
+export default function ChatFlotante({ eventId, visible, onClose, userId, userName, userRole }) {
+  const router = useRouter();
+  const [messages, setMessages] = useState([
+    {
+      id: 'welcome',
+      userId: 0,
+      userName: '🤖 Asistente IA',
+      message: '¡Hola! Soy tu asistente virtual. Puedo ayudarte con:\n\n➕ Crear evento:\n  • "Crear evento" - Registrar un nuevo evento\n\n📋 Quick Actions:\n  • Resumen del día\n  • Qué tengo pendiente\n  • Eventos cercanos\n  • Sugerencias\n\n📊 Reports:\n  • Reporte del evento\n  • Eventos cerrados\n\n📱 Telegram:\n  • Enviar resumen por Telegram\n  • Enviar reporte por Telegram\n\nEscribe "ayuda" para ver todo.',
+      esBot: true,
+    }
+  ]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const flatListRef = useRef(null);
+  const [selectorVisible, setSelectorVisible] = useState(false);
+  const [misEventos, setMisEventos] = useState([]);
+  const [selectorLoading, setSelectorLoading] = useState(false);
+
+  useEffect(() => {
+    console.log('🔍 ChatFlotante - eventId:', eventId);
+    console.log('🔍 ChatFlotante - userId:', userId);
+  }, [eventId, userId]);
+
+  const abrirSelectorEventos = async () => {
+    const validUserId = userId && String(userId).trim() && !isNaN(Number(userId)) ? String(userId) : null;
+    if (!validUserId) {
+      setMessages(prev => [...prev, {
+        id: `error_${Date.now()}`,
+        userId: 0,
+        userName: '🤖 Asistente IA',
+        message: '⚠️ Para enviar la ficha de un evento debes iniciar sesión.',
+        esBot: true,
+      }]);
+      return;
+    }
+    setSelectorLoading(true);
+    setSelectorVisible(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/bot/mis-eventos/${validUserId}`);
+      const data = await res.json();
+      setMisEventos(data.eventos || []);
+    } catch (err) {
+      console.error('❌ Error al cargar eventos:', err);
+      setMisEventos([]);
+    } finally {
+      setSelectorLoading(false);
+    }
+  };
+
+  const handleSend = async (textoOverride, eventIdOverride) => {
+    const texto = (textoOverride || input).trim();
+    if (!texto) return;
+
+    const validUserId = userId && String(userId).trim() && !isNaN(Number(userId)) ? String(userId) : null;
+
+    const userMessage = {
+      id: `user_${Date.now()}`,
+      userId: validUserId || 1,
+      userName: userName || 'Tú',
+      message: texto,
+      esBot: false,
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 40000);
+
+try {
+      const effectiveEventId = (eventIdOverride || (eventId && eventId !== 'null' && eventId !== 'undefined')) ? (eventIdOverride || eventId) : null;
+
+      const response = await fetch(`${API_BASE_URL}/bot/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: texto,
+          sender: validUserId || 'invitado',
+          eventId: effectiveEventId,
+          history: messages.slice(-6).map(m => ({
+            role: m.esBot ? 'bot' : 'user',
+            text: m.message
+          })),
+        }),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const data = await response.json();
+
+      const botMessage = {
+        id: `bot_${Date.now()}`,
+        userId: 0,
+        userName: '🤖 Asistente IA',
+        message: data.reply || 'Lo siento, no entendí. Prueba con "ayuda"',
+        esBot: true,
+        categoria: data.categoria,
+      };
+
+      setMessages(prev => [...prev, botMessage]);
+
+      if (data.abrirFormulario) {
+        setTimeout(() => {
+          if (typeof onClose === 'function') onClose();
+          router.push(data.abrirFormulario);
+        }, 900);
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      console.error('❌ Error en ChatFlotante:', error);
+      setMessages(prev => [...prev, {
+        id: `error_${Date.now()}`,
+        userId: 0,
+        userName: '  Error',
+        message: error.name === 'AbortError'
+          ? '⏱️ La IA tardó demasiado en responder. Inténtalo de nuevo o escribe "Resumen del día".'
+          : 'Error de conexión. Verifica tu internet e intenta de nuevo.',
+        esBot: true,
+      }]);
+    } finally {
+      setLoading(false);
+    }
+
+    setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+  };
+
+  const renderQuickActions = () => (
+    <View style={{ paddingHorizontal: 10, paddingTop: 8, paddingBottom: 4 }}>
+      <Text style={{ fontSize: 11, color: COLORS.textTertiary, fontWeight: '600', marginBottom: 6, marginLeft: 4 }}>
+        ACCIONES RÁPIDAS
+      </Text>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+        {QUICK_ACTIONS.map((qa) => (
+          <TouchableOpacity
+            key={qa.label}
+            onPress={() => handleSend(qa.action)}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: 4,
+              backgroundColor: qa.label === 'Cancelar' ? '#FDE8E8' : '#F3E5F5',
+              paddingHorizontal: 10, paddingVertical: 6,
+              borderRadius: 14, borderWidth: 1,
+              borderColor: qa.label === 'Cancelar' ? '#EF444466' : '#9B59B622',
+            }}
+          >
+            <Text style={{ fontSize: 12 }}>{qa.icon}</Text>
+            <Text style={{ fontSize: 11, color: qa.label === 'Cancelar' ? '#DC2626' : '#7B1FA2', fontWeight: '600' }}>{qa.label}</Text>
+          </TouchableOpacity>
+        ))}
+      </View>
+    </View>
+  );
+
+  const renderMessage = ({ item }) => {
+    const isBot = item.esBot || item.userId === 0;
+    const esUltimoBot = isBot && [...messages].filter(m => m.esBot || m.userId === 0).pop()?.id === item.id;
+
+    return (
+      <View style={{
+        flexDirection: 'row', marginVertical: 3,
+        justifyContent: isBot ? 'flex-start' : 'flex-end',
+      }}>
+        {isBot && (
+          <View style={{
+            width: 28, height: 28, borderRadius: 14,
+            backgroundColor: '#F3E5F5', borderWidth: 1, borderColor: '#9B59B655',
+            alignItems: 'center', justifyContent: 'center', marginRight: 6, marginTop: 2,
+          }}>
+            <Text style={{ fontSize: 12, fontWeight: '700', color: '#9B59B6' }}>IA</Text>
+          </View>
+        )}
+        <View style={{ maxWidth: '78%' }}>
+          {isBot && (
+            <Text style={{ fontSize: 10, color: '#9B59B6', fontWeight: '700', marginBottom: 2, marginLeft: 2 }}>
+              🤖 Asistente IA
+            </Text>
+          )}
+          {!isBot && (
+            <Text style={{ fontSize: 10, color: COLORS.textSecondary, marginBottom: 2, textAlign: 'right' }}>
+              {item.userName}
+            </Text>
+          )}
+          <View style={{
+            backgroundColor: isBot ? '#F3E5F5' : COLORS.primary,
+            paddingHorizontal: 12, paddingVertical: 9,
+            borderRadius: 14,
+            borderTopLeftRadius: isBot ? 4 : 14,
+            borderTopRightRadius: isBot ? 14 : 4,
+            borderLeftWidth: isBot ? 3 : 0,
+            borderLeftColor: isBot ? '#9B59B6' : 'transparent',
+          }}>
+            <Text style={{ fontSize: 13, color: isBot ? COLORS.textPrimary : COLORS.white, lineHeight: 19 }}>
+              {item.message}
+            </Text>
+          </View>
+          {esUltimoBot && (
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6, marginLeft: 2 }}>
+              <TouchableOpacity
+                onPress={() => handleSend('Enviar por Telegram')}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 4,
+                  backgroundColor: '#E8F5E9', borderRadius: 14,
+                  paddingHorizontal: 10, paddingVertical: 5,
+                  borderWidth: 1, borderColor: '#2E7D3244',
+                }}
+              >
+                <Ionicons name="send-outline" size={12} color="#2E7D32" />
+                <Text style={{ fontSize: 10, color: '#2E7D32', fontWeight: '700' }}>
+                  Enviar por Telegram
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={abrirSelectorEventos}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 4,
+                  backgroundColor: '#E3F2FD', borderRadius: 14,
+                  paddingHorizontal: 10, paddingVertical: 5,
+                  borderWidth: 1, borderColor: '#1565C044',
+                }}
+              >
+                <Ionicons name="document-text-outline" size={12} color="#1565C0" />
+                <Text style={{ fontSize: 10, color: '#1565C0', fontWeight: '700' }}>
+                  Enviar ficha por Telegram
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  };
+
+  if (!visible) return null;
+
+  return (
+    <View style={{
+      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+      backgroundColor: 'rgba(0,0,0,0.4)', zIndex: 2000,
+    }}>
+      <View style={{
+        width: '88%', maxWidth: 400, height: '100%',
+        backgroundColor: COLORS.background,
+        borderTopRightRadius: 24, borderBottomRightRadius: 24,
+        elevation: 12, overflow: 'hidden',
+        shadowColor: '#000', shadowOffset: { width: 6, height: 0 },
+        shadowOpacity: 0.2, shadowRadius: 14,
+      }}>
+        {/* Header */}
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          paddingHorizontal: 14, paddingTop: (StatusBar.currentHeight || 30) + 8, paddingBottom: 12,
+          backgroundColor: '#9B59B6',
+        }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={{
+              width: 36, height: 36, borderRadius: 18,
+              backgroundColor: '#FFFFFF', justifyContent: 'center', alignItems: 'center',
+            }}>
+              <Ionicons name="hardware-chip-outline" size={20} color="#9B59B6" />
+            </View>
+            <View>
+              <Text style={{ fontSize: 15, fontWeight: '700', color: '#FFFFFF' }}>
+                Asistente IA
+              </Text>
+              <Text style={{ fontSize: 11, color: '#E0D4F0' }}>
+                ● En línea
+              </Text>
+            </View>
+          </View>
+          <TouchableOpacity
+            onPress={onClose}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            style={{
+              width: 32, height: 32, borderRadius: 16,
+              backgroundColor: 'rgba(255,255,255,0.2)',
+              alignItems: 'center', justifyContent: 'center',
+            }}
+          >
+            <Ionicons name="close" size={18} color="#FFFFFF" />
+          </TouchableOpacity>
+        </View>
+
+        {/* Quick Actions */}
+        {renderQuickActions()}
+
+        {/* Messages */}
+        <FlatList
+          ref={flatListRef}
+          data={messages}
+          keyExtractor={item => item.id}
+          contentContainerStyle={{ padding: 12, paddingBottom: 8 }}
+          renderItem={renderMessage}
+          style={{ flex: 1 }}
+        />
+
+        {/* Loading indicator */}
+        {loading && (
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 14, paddingBottom: 6 }}>
+            <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: '#F3E5F5', alignItems: 'center', justifyContent: 'center' }}>
+              <Text style={{ fontSize: 11, fontWeight: '700', color: '#9B59B6' }}>IA</Text>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 3 }}>
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#9B59B6', opacity: 0.4 }} />
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#9B59B6', opacity: 0.6 }} />
+              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#9B59B6', opacity: 0.8 }} />
+            </View>
+          </View>
+        )}
+
+        {/* Input */}
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
+          <View style={{
+            flexDirection: 'row', padding: 10,
+            borderTopWidth: 1, borderColor: COLORS.border,
+            backgroundColor: COLORS.white, gap: 8,
+          }}>
+            <TextInput
+              value={input}
+              onChangeText={setInput}
+              placeholder="Pregúntale a la IA..."
+              placeholderTextColor={COLORS.textTertiary}
+              onSubmitEditing={() => handleSend()}
+              returnKeyType="send"
+              style={{
+                flex: 1, backgroundColor: COLORS.background,
+                borderRadius: 20, paddingHorizontal: 14,
+                fontSize: 13, height: 40,
+                borderWidth: 1, borderColor: COLORS.border,
+              }}
+            />
+            <TouchableOpacity
+              onPress={() => handleSend()}
+              disabled={!input.trim() || loading}
+              style={{
+                backgroundColor: input.trim() ? '#9B59B6' : '#D1D5DB',
+                borderRadius: 22, width: 42, height: 42,
+                justifyContent: 'center', alignItems: 'center',
+              }}
+            >
+              <Ionicons name="send" size={18} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
+      </View>
+
+      {selectorVisible && (
+        <View style={{
+          position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 3000,
+          justifyContent: 'center', alignItems: 'center', padding: 24,
+        }}>
+          <View style={{
+            width: '100%', maxWidth: 380, maxHeight: '75%',
+            backgroundColor: COLORS.white, borderRadius: 20, overflow: 'hidden',
+            elevation: 12,
+          }}>
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+              paddingHorizontal: 16, paddingVertical: 12,
+              backgroundColor: '#1565C0',
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <Ionicons name="document-text-outline" size={18} color="#FFF" />
+                <Text style={{ fontSize: 14, fontWeight: '700', color: '#FFF' }}>
+                  Escoge el evento
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setSelectorVisible(false)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+              >
+                <Ionicons name="close" size={20} color="#FFF" />
+              </TouchableOpacity>
+            </View>
+
+            {selectorLoading ? (
+              <View style={{ alignItems: 'center', padding: 30 }}>
+                <Text style={{ fontSize: 13, color: COLORS.textSecondary }}>Cargando tus eventos...</Text>
+              </View>
+            ) : misEventos.length === 0 ? (
+              <View style={{ alignItems: 'center', padding: 30 }}>
+                <Ionicons name="calendar-outline" size={34} color={COLORS.textTertiary} />
+                <Text style={{ fontSize: 13, color: COLORS.textSecondary, marginTop: 8, textAlign: 'center' }}>
+                  No encontré eventos en tu cuenta.
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={misEventos}
+                keyExtractor={(e) => String(e.idevento)}
+                style={{ maxHeight: 380 }}
+                contentContainerStyle={{ padding: 8 }}
+                renderItem={({ item }) => {
+                  const colorEstado =
+                    item.estado === 'aprobado' ? '#16A34A' :
+                    item.estado === 'rechazado' ? '#DC2626' : '#D97706';
+                  const labelEstado =
+                    item.estado === 'aprobado' ? 'APROBADO' :
+                    item.estado === 'rechazado' ? 'RECHAZADO' : 'PENDIENTE';
+                  return (
+                    <TouchableOpacity
+                      onPress={() => {
+                        setSelectorVisible(false);
+                        handleSend('Enviar ficha por Telegram', String(item.idevento));
+                      }}
+                      style={{
+                        flexDirection: 'row', alignItems: 'center', gap: 10,
+                        padding: 10, marginVertical: 3,
+                        backgroundColor: COLORS.background, borderRadius: 12,
+                        borderWidth: 1, borderColor: COLORS.border,
+                      }}
+                    >
+                      <Ionicons name="calendar-outline" size={18} color="#1565C0" />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: 13, fontWeight: '700', color: COLORS.textPrimary }} numberOfLines={1}>
+                          {item.nombreevento}
+                        </Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                          <Ionicons name="time-outline" size={11} color={COLORS.textTertiary} />
+                          <Text style={{ fontSize: 11, color: COLORS.textSecondary }}>
+                            {item.fechaevento ? item.fechaevento.split('T')[0] : 'Sin fecha'}
+                            {item.horaevento ? `  ·  ${String(item.horaevento).substring(0, 5)} h` : ''}
+                          </Text>
+                          <View style={{
+                            paddingHorizontal: 6, paddingVertical: 1,
+                            borderRadius: 8, backgroundColor: `${colorEstado}18`,
+                          }}>
+                            <Text style={{ fontSize: 9, fontWeight: '700', color: colorEstado }}>
+                              {labelEstado}
+                            </Text>
+                          </View>
+                        </View>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={COLORS.textTertiary} />
+                    </TouchableOpacity>
+                  );
+                }}
+              />
+            )}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
