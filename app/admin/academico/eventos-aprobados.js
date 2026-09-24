@@ -9,7 +9,7 @@ import AdminHeader from '../../../components/admin/AdminHeader';
 
 const API_BASE_URL = Platform.OS === 'android' || Platform.OS === 'ios' 
   ? 'http://192.168.0.167:3001' 
-  : process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
+  : process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
 
 // Usa el token de académico (NO el de admin)
 const TOKEN_KEY = 'authToken'; 

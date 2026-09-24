@@ -21,7 +21,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { useEffect } from 'react';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
 // Misma paleta que InventarioDAF.js para mantener consistencia visual
 const C = {
   primary: '#C44200', primaryLight: '#FFF0E6',

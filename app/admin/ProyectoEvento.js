@@ -14,7 +14,7 @@ import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
 import AdminHeader from '../../components/admin/AdminHeader';
 
 //const API_BASE_URL =  'https://evento.cidtec-uc.com';
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
 
 const TIPOS_DE_EVENTO = [
   { id: '1', label: 'Curricular' },

@@ -12,7 +12,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import * as SecureStore from 'expo-secure-store';
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
 const TOKEN_KEY = 'adminAuthToken';
 
 const SUGERENCIAS_IA = [
@@ -1055,7 +1055,7 @@ const programacionEvento = () => {
             <ScrollView horizontal showsHorizontalScrollIndicator={false}>
               <View style={styles.layoutsGrid}>
                 {layoutsDisponibles.map((layout) => {
-                  const imageUrl = layout.imagenUrl || `https://unibackend-production-a0f8.up.railway.app/uploads/${layout.url_imagen}`;
+                  const imageUrl = layout.imagenUrl || `https://unibackend-production-9618.up.railway.app/uploads/${layout.url_imagen}`;
                   const isSelected = layoutSeleccionado?.idlayout === layout.idlayout;
 
                   return (
@@ -1250,7 +1250,7 @@ const programacionEvento = () => {
             </View>
             {previewLayout && (
               <Image
-                source={{ uri: previewLayout.imagenUrl || `https://unibackend-production-a0f8.up.railway.app/uploads/${previewLayout.url_imagen}` }}
+                source={{ uri: previewLayout.imagenUrl || `https://unibackend-production-9618.up.railway.app/uploads/${previewLayout.url_imagen}` }}
                 style={styles.previewImage}
                 resizeMode="contain"
               />

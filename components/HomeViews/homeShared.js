@@ -4,7 +4,7 @@ import axios from 'axios';
 import dayjs from 'dayjs';
 
 export const API_BASE_URL =
-  process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
+  process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
 
 export const windowWidth = Dimensions.get('window').width;
 export const IS_WIDE = windowWidth >= 780;
