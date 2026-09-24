@@ -19,7 +19,6 @@ const COLORS = {
 
 const QUICK_ACTIONS = [
   { label: 'Crear evento', icon: '➕', action: 'Crear evento' },
-  { label: 'Cancelar', icon: '✖️', action: 'Cancelar' },
   { label: 'Resumen del día', icon: '📋', action: 'Resumen del día' },
   { label: 'Pendientes', icon: '⏳', action: 'Qué tengo pendiente' },
   { label: 'Eventos cercanos', icon: '📅', action: 'Eventos cercanos' },
@@ -45,6 +44,7 @@ export default function ChatFlotante({ eventId, visible, onClose, userId, userNa
   const [selectorVisible, setSelectorVisible] = useState(false);
   const [misEventos, setMisEventos] = useState([]);
   const [selectorLoading, setSelectorLoading] = useState(false);
+  const [creandoEvento, setCreandoEvento] = useState(false);
 
   useEffect(() => {
     console.log('🔍 ChatFlotante - eventId:', eventId);
@@ -133,6 +133,13 @@ try {
 
       setMessages(prev => [...prev, botMessage]);
 
+      const creacionTerminada =
+        Boolean(data.abrirFormulario) ||
+        /(creación cancelada|creado con éxito|te llevaré al formulario|no tienes una creación de evento en curso)/i.test(data.reply);
+      const creacionIniciada = /vamos a crear tu evento/i.test(data.reply);
+      if (creacionTerminada) setCreandoEvento(false);
+      else if (creacionIniciada) setCreandoEvento(true);
+
       if (data.abrirFormulario) {
         setTimeout(() => {
           if (typeof onClose === 'function') onClose();
@@ -170,14 +177,14 @@ try {
             onPress={() => handleSend(qa.action)}
             style={{
               flexDirection: 'row', alignItems: 'center', gap: 4,
-              backgroundColor: qa.label === 'Cancelar' ? '#FDE8E8' : '#F3E5F5',
+              backgroundColor: '#F3E5F5',
               paddingHorizontal: 10, paddingVertical: 6,
               borderRadius: 14, borderWidth: 1,
-              borderColor: qa.label === 'Cancelar' ? '#EF444466' : '#9B59B622',
+              borderColor: '#9B59B622',
             }}
           >
             <Text style={{ fontSize: 12 }}>{qa.icon}</Text>
-            <Text style={{ fontSize: 11, color: qa.label === 'Cancelar' ? '#DC2626' : '#7B1FA2', fontWeight: '600' }}>{qa.label}</Text>
+            <Text style={{ fontSize: 11, color: '#7B1FA2', fontWeight: '600' }}>{qa.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
@@ -373,6 +380,24 @@ try {
               <Ionicons name="send" size={18} color="#FFFFFF" />
             </TouchableOpacity>
           </View>
+
+          {creandoEvento && (
+            <TouchableOpacity
+              onPress={() => handleSend('Cancelar')}
+              style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+                marginHorizontal: 10, marginBottom: 10,
+                backgroundColor: '#FDE8E8',
+                borderRadius: 14, paddingVertical: 10,
+                borderWidth: 1, borderColor: '#EF444466',
+              }}
+            >
+              <Ionicons name="close-circle-outline" size={16} color="#DC2626" />
+              <Text style={{ fontSize: 13, color: '#DC2626', fontWeight: '700' }}>
+                Cancelar
+              </Text>
+            </TouchableOpacity>
+          )}
         </KeyboardAvoidingView>
       </View>
 

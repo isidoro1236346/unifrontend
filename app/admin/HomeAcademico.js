@@ -429,7 +429,7 @@ const MainTabs = ({ active, onChange }) => (
   </View>
 );
 
-const MinimalHeader = ({ nombreUsuario, unreadCount, onNotificationPress, onRefresh, refreshing, lastUpdated, onTelegramPress, isTelegramLinked }) => {
+const MinimalHeader = ({ nombreUsuario, facultad, unreadCount, onNotificationPress, onRefresh, refreshing, lastUpdated, onTelegramPress, isTelegramLinked }) => {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
   return (
@@ -441,6 +441,12 @@ const MinimalHeader = ({ nombreUsuario, unreadCount, onNotificationPress, onRefr
         <View style={styles.heroLeft}>
           <Text style={styles.heroGreeting}>{greeting}</Text>
           <Text style={styles.heroName} numberOfLines={1}>{nombreUsuario}</Text>
+          {facultad ? (
+            <View style={styles.heroFacultadRow}>
+              <Ionicons name="school-outline" size={13} color="rgba(255,255,255,0.85)" />
+              <Text style={styles.heroFacultad} numberOfLines={1}>{facultad}</Text>
+            </View>
+          ) : null}
         </View>
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.headerIconBtn} onPress={onTelegramPress}>
@@ -525,6 +531,7 @@ const HomeAcademicoScreen = () => {
   const { width: windowWidth } = useWindowDimensions();
 
   const [nombreUsuario, setNombreUsuario] = useState(params.nombre || 'Académico');
+  const [facultadUsuario, setFacultadUsuario] = useState('');
   const [notifications, setNotifications] = useState([]);
   const [showNotifications, setShowNotifications] = useState(false);
   const [isDockExpanded, setIsDockExpanded] = useState(false);
@@ -663,6 +670,7 @@ const HomeAcademicoScreen = () => {
       if (prof.status === 'fulfilled' && prof.value && prof.value.data) {
         const u = prof.value.data;
         setNombreUsuario(u.nombre || params.nombre || 'Académico');
+        setFacultadUsuario(u.facultad || '');
         setTelegramUsername(u.telegram_username || '');
         setChatUserId(u.id || u.idusuario || u.user_id || u.iduser || null);
         const chatId = u.telegram_chat_id;
@@ -824,6 +832,7 @@ const adminActions = [
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: isDockExpanded ? 300 : 100 }}>
         <MinimalHeader
           nombreUsuario={nombreUsuario}
+          facultad={facultadUsuario}
           unreadCount={unreadCount}
           onNotificationPress={() => setShowNotifications(true)}
           onRefresh={() => fetchDashboardData(true)}
@@ -1213,6 +1222,8 @@ const styles = StyleSheet.create({
   heroLeft: { flex: 1 },
   heroGreeting: { fontSize: 15, color: 'rgba(255,255,255,0.85)', fontWeight: '500' },
   heroName: { fontSize: 22, color: '#fff', fontWeight: '800', marginTop: 2 },
+  heroFacultadRow: { flexDirection: 'row', alignItems: 'center', marginTop: 4 },
+  heroFacultad: { fontSize: 13, color: 'rgba(255,255,255,0.85)', fontWeight: '600', marginLeft: 4, flexShrink: 1 },
   heroDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.25)', marginBottom: 12 },
   headerActions: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   headerIconBtn: {
