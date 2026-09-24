@@ -19,7 +19,7 @@ import CustomAlert from '../../../components/CustomAlert';
 import { useFocusEffect } from '@react-navigation/native';
 
 // Configuración de API
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
 const TOKEN_KEY = 'adminAuthToken';
 
 const getTokenAsync = async () => {

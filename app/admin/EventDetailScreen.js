@@ -13,7 +13,7 @@ import { Ionicons } from '@expo/vector-icons';
 import dayjs from 'dayjs';
 import Svg, { Circle, Line, Text as SvgText } from 'react-native-svg';
 import AdminHeader from '../../components/admin/AdminHeader';
-const API_BASE_URL =  process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+const API_BASE_URL =  process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
 const { width } = Dimensions.get('window');
 const isMobile = width < 768;
 

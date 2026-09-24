@@ -21,7 +21,7 @@ import DropDownPicker from 'react-native-dropdown-picker';
 
 const { width } = Dimensions.get('window');
 const isWeb = Platform.OS === 'web';
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
 
 const CARRERA_A_FACULTAD = {
   '1':'1', '2':'2', '3':'2', '4':'2', '5':'2', '6':'2', '7':'2', 

@@ -5,8 +5,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+import { API_BASE_URL } from '../utils/apiConfig';
 
 const COLORS = {
   primary: '#C44200', primaryLight: '#FFEDD5',

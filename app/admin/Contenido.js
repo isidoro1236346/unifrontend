@@ -24,23 +24,23 @@ let determinedApiBaseUrl;
   if (typeof window !== 'undefined' && window.location) {
     const origin = window.location.origin;
     if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-      determinedApiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+      determinedApiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
     } else {
       determinedApiBaseUrl = `${origin}/api`;
     }
   } else {
     // Fallback si window no está disponible
-    determinedApiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+    determinedApiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
   }
 } else if (Platform.OS === 'android') {
   determinedApiBaseUrl = 'http://10.0.2.2:3001/api';
 } else if (Platform.OS === 'ios') {
-  determinedApiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+  determinedApiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
 } else {
-  determinedApiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+  determinedApiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
 }*/
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
 //const API_BASE_URL =  'https://unifrontend.onrender.com';
 const TOKEN_KEY = 'adminAuthToken';
 

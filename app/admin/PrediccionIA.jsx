@@ -20,7 +20,7 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { useTheme } from '../../context/ThemeContext';
 
 // Usa la misma URL que tu app principal
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
 
 const getTokenAsync = async () => {
   if (Platform.OS === 'web') {

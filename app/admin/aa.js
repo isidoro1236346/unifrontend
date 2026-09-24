@@ -16,11 +16,11 @@ import dayjs from 'dayjs';
 if (Platform.OS === 'android') {
   determinedApiBaseUrl = 'http://10.0.2.2:3001/api';
 } else if (Platform.OS === 'ios') {
-  determinedApiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+  determinedApiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
 } else { // web y otros
-  determinedApiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+  determinedApiBaseUrl = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
 }*/
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
 
 // --- CONFIGURACIÓN DE IDIOMA PARA CALENDARIO ---
 LocaleConfig.locales['es'] = {

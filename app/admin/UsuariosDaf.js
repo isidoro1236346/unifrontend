@@ -22,7 +22,7 @@ import * as SecureStore from 'expo-secure-store';
 
 const { width } = Dimensions.get('window');
 
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
 
 const COLORS = {
   primary: '#C44200',

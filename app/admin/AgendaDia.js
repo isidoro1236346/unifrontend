@@ -7,7 +7,7 @@ import 'dayjs/locale/es';
 
 // Configuración de dayjs y constantes
 dayjs.locale('es');
-const API_BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3001/api' : (process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app');
+const API_BASE_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3001/api' : (process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app');
 const getTokenAsync = async () => "token-de-prueba-para-desarrollo";
 
 const AgendaDia = () => {
