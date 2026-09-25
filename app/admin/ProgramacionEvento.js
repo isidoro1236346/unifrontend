@@ -981,7 +981,7 @@ const programacionEvento = () => {
 
         {/* Ambientes */}
         <View style={styles.formSection}>
-          <SectionHeader icon="business-outline" title="Ambientes" color="#047857" />
+          <SectionHeader icon="business-outline" title="Requisitos Tecnicos" color="#047857" />
           {ambientes.map((ambiente, index) => (
             <View key={ambiente.key} style={styles.ambienteItemContainer}>
               <View style={styles.ambienteItemHeader}>
