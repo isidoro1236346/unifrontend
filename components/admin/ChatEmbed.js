@@ -62,6 +62,16 @@ const nombreCompletoDe = (u) => {
   return nombre || null;
 };
 
+// El `nombre` de un contacto puede venir ya completo (tras resolver contra
+// /users) o ser solo el primer nombre (respuesta del endpoint de comité).
+const nombreDeContacto = (c) => {
+  const nombre = String((c && c.nombre) || '').trim();
+  if (!nombre) return null;
+  if (/\s/.test(nombre)) return nombre;
+  const apellidos = [c.apellidopat, c.apellidomat].filter(Boolean).map(String).join(' ').trim();
+  return apellidos ? `${nombre} ${apellidos}` : nombre;
+};
+
 const formatearFecha = (f) => {
   const s = (f || '').toString().split('T')[0];
   if (s.length !== 10) return 'Fecha por definir';
@@ -566,7 +576,7 @@ const VistaEvento = ({ evento, userId, userRole, userName, onVolver, onRoomChang
     return (
       <VistaChat
         eventoId={evento.idevento}
-        titulo={chatPrivado.nombre || chatPrivado.usuario?.nombre || `Usuario ${chatPrivado.idusuario}`}
+        titulo={nombreDeContacto(chatPrivado) || `Usuario ${chatPrivado.idusuario}`}
         subtitulo="Chat privado"
         roomId={roomId}
         userId={userId} userRole={userRole} userName={userName}
@@ -732,7 +742,7 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
 
     const contacto = contactosRef.current.find(c => String(c.idusuario) === id);
     if (contacto) {
-      const nombre = nombreCompletoDe(contacto);
+      const nombre = nombreDeContacto(contacto);
       if (nombre) return nombre;
     }
 
@@ -878,37 +888,53 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
 
         setEventos(eventosUnicos);
 
+        // Un contacto puede compartir varios eventos, así que se acumulan en vez
+        // de quedar anclado al primero (causaba mostrar el nombre de otro evento).
         const mapContactos = new Map();
+        const agregarContacto = (id, datos) => {
+          const key = String(id);
+          if (!key || key === String(userId)) return;
+          const prev = mapContactos.get(key) || { idusuario: key, eventos: [] };
+          const eventos = prev.eventos || [];
+          const compartido = datos.eventoCompartido;
+          if (compartido && !eventos.some(x => String(x.idevento) === String(compartido.idevento))) {
+            eventos.push({ idevento: compartido.idevento, nombreevento: compartido.nombreevento });
+          }
+          mapContactos.set(key, { ...prev, ...datos, eventos });
+        };
+
         eventosUnicos.forEach((ev) => {
           const comite = ev.Comite || ev.comite || [];
           comite.forEach((m) => {
-            const idC = String(m.idusuario);
-            if (idC !== String(userId) && !mapContactos.has(idC)) {
-              mapContactos.set(idC, { 
-                idusuario: idC, 
-                nombre: m.nombre || m.usuario?.nombre, 
-                apellidopat: m.apellidopat || m.usuario?.apellidopat, 
-                rol_comite: m.rol_comite || m.role || 'miembro',
-                idevento: ev.idevento,
-                nombreevento: ev.nombreevento
-              });
-            }
+            agregarContacto(m.idusuario, {
+              nombre: m.nombre || m.usuario?.nombre,
+              nameoficial: m.nombre || m.usuario?.nombre,
+              appellidopat: m.apellidopat || m.usuario?.apellidopat,
+              appellidomat: m.apellidomat || m.usuario?.apellidomat,
+              rol_comite: m.rol_comite || m.role || 'miembro',
+              eventoCompartido: ev,
+            });
           });
-          if (ev.idacademico && String(ev.idacademico) !== String(userId)) {
-            const idA = String(ev.idacademico);
-            if (!mapContactos.has(idA)) {
-              mapContactos.set(idA, { 
-                idusuario: idA, 
-                nombre: 'Creador del evento', 
-                apellidopat: '', 
-                rol_comite: 'creador',
-                idevento: ev.idevento,
-                nombreevento: ev.nombreevento
-              });
-            }
+          if (ev.idacademico) {
+            agregarContacto(ev.idacademico, {
+              nombre: ev.academico?.nombre || 'Creador del evento',
+              nameoficial: ev.academico?.nombre || '',
+              appellidopat: '',
+              appellidomat: '',
+              rol_comite: 'creador',
+              eventoCompartido: ev,
+            });
           }
         });
-        setContactos(Array.from(mapContactos.values()));
+
+        // Nombres reales: el endpoint de comité solo devuelve el primer nombre.
+        const listaUsuarios = await cargarNombresUsuarios();
+        const contactos = Array.from(mapContactos.values()).map((c) => {
+          const u = listaUsuarios.find(x => String(x.idusuario ?? x.id) === String(c.idusuario));
+          const nombreReal = nombreCompletoDe(u);
+          return nombreReal ? { ...c, nombre: nombreReal } : c;
+        });
+        setContactos(contactos);
       } catch (e) {
         Alert.alert('Error', 'No se pudieron cargar los chats');
       } finally {
@@ -1107,12 +1133,11 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
           ) : (
             <ScrollView contentContainerStyle={{ padding: 12 }}>
               {contactosFiltrados.map((c) => {
-              const nombre = c.nombre || `Usuario ${c.idusuario}`;
-              const apellido = c.apellidopat || '';
+              const nombre = nombreDeContacto(c) || `Usuario ${c.idusuario}`;
+              const apellido = '';
               const rol = c.rol_comite || 'miembro';
               const colorRol = ROL_COLORS[rol] || COLORS.secondary;
-              const idevento = c.idevento;
-              const nombreevento = c.nombreevento;
+              const nEventos = (c.eventos || []).length;
               const pendPriv = noLeidos[roomPrivadaId(userId, c.idusuario)] || 0;
               return (
                 <TouchableOpacity
@@ -1132,14 +1157,17 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
                     <Text style={{ fontSize: 14, fontWeight: '700', color: COLORS.textPrimary }}>
                       {nombre} {apellido}
                     </Text>
-                    {idevento && nombreevento ? (
-                      <Text style={{ fontSize: 11, color: COLORS.textTertiary, marginTop: 2, textTransform: 'capitalize' }}>
-                        {nombreevento}
-                      </Text>
-                    ) : null}
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
                       <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colorRol }} />
                       <Text style={{ fontSize: 11, color: COLORS.textTertiary, textTransform: 'capitalize' }}>{rol}</Text>
+                      {nEventos > 0 ? (
+                        <>
+                          <Text style={{ fontSize: 11, color: COLORS.textTertiary }}>·</Text>
+                          <Text style={{ fontSize: 11, color: COLORS.textTertiary }}>
+                            {nEventos} evento{nEventos !== 1 ? 's' : ''} en común
+                          </Text>
+                        </>
+                      ) : null}
                     </View>
                   </View>
                   <View style={{
