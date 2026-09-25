@@ -1,9 +1,10 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, FlatList, TextInput, TouchableOpacity,
   ActivityIndicator, KeyboardAvoidingView, Platform, Alert, ScrollView
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
@@ -53,6 +54,13 @@ const hoyStr = () => {
 };
 
 const roomPrivadaId = (a, b) => 'private_' + [String(a), String(b)].map(Number).sort((x, y) => x - y).join('_');
+
+const nombreCompletoDe = (u) => {
+  if (!u) return null;
+  const partes = [u.nombre, u.apellidopat, u.apellidomat].filter(Boolean).map(String).map(s => s.trim());
+  const nombre = partes.join(' ').trim();
+  return nombre || null;
+};
 
 const formatearFecha = (f) => {
   const s = (f || '').toString().split('T')[0];
@@ -256,21 +264,28 @@ const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, user
       socket.on('history', (h) => {
         if (!isMounted) return;
         if (h.length > 0) {
-          setMessages(h.map((m, i) => ({ ...m, id: `h_${i}` })));
+          // Conserva al final los mensajes optimistas aún no confirmados por el
+          // servidor y evita duplicar los que ya llegaron dentro del historial.
+          setMessages(prev => {
+            const pendientes = prev.filter(m => m.pendiente);
+            const yaPendientes = new Set(pendientes.map(m => `${m.userId}::${m.message}`));
+            const base = h
+              .map((m, i) => ({ ...m, id: `h_${i}`, roomId: _roomId }))
+              .filter(m => !yaPendientes.has(`${m.userId}::${m.message}`));
+            return [...base, ...pendientes];
+          });
         }
         setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
       });
 
       socket.on('receive_message', (msg) => {
         if (!isMounted) return;
-        setMessages(prev => [...prev, { ...msg, id: `m_${Date.now()}_${Math.random()}` }]);
-        setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+        agregarMensaje({ ...msg, roomId: _roomId, id: msg.id || `m_${Date.now()}_${Math.random()}` });
       });
 
       socket.on('private_message', (msg) => {
         if (!isMounted) return;
-        setMessages(prev => [...prev, { ...msg, id: `p_${Date.now()}_${Math.random()}` }]);
-        setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 100);
+        agregarMensaje({ ...msg, roomId: _roomId, id: msg.id || `p_${Date.now()}_${Math.random()}` });
       });
 
       socket.on('user_list', (l) => {
@@ -329,6 +344,24 @@ const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, user
     return () => onRoomChange && onRoomChange(null);
   }, [roomId]);
 
+  // Agrega un mensaje al final. Si el mensaje local pendiente (optimista) coincide
+  // con el eco del servidor, lo reemplaza en vez de duplicarlo.
+  const agregarMensaje = (msg) => {
+    setMessages(prev => {
+      const idx = prev.findIndex(m => m.pendiente
+        && String(m.userId) === String(msg.userId)
+        && m.message === msg.message
+        && m.roomId === msg.roomId);
+      if (idx >= 0) {
+        const copia = [...prev];
+        copia[idx] = { ...copia[idx], ...msg, id: copia[idx].id, pendiente: false };
+        return copia;
+      }
+      return [...prev, msg];
+    });
+    setTimeout(() => flatRef.current?.scrollToEnd({ animated: true }), 80);
+  };
+
   const handleSend = () => {
     const texto = input.trim();
     if (!texto) return;
@@ -343,6 +376,18 @@ const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, user
     const _userRole = userRoleRef.current;
     const _userName = userNameRef.current;
     const _eventoId = eventoIdRef.current;
+
+    // Append optimista: el mensaje se ve de inmediato sin esperar al servidor.
+    agregarMensaje({
+      id: `t_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+      userId: _userId,
+      userName: _userName,
+      role: _userRole,
+      message: texto,
+      roomId: _roomId,
+      timestamp: new Date().toISOString(),
+      pendiente: true,
+    });
 
     if (_roomId.startsWith('private_')) {
       socketRef.current.emit('send_private', {
@@ -636,7 +681,7 @@ const VistaEvento = ({ evento, userId, userRole, userName, onVolver, onRoomChang
   );
 };
 
-const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, activeRoom = null, comandoAbrirPrivado = null, onComandoAplicado = null }) => {
+const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, activeRoom = null, comandoAbrirPrivado = null, onComandoAplicado = null, comandoAbrirSala = null, onComandoSalaAplicado = null }) => {
   const [tabMain, setTabMain]           = useState('grupo'); // 'grupo' | 'personal'
   const [vista, setVista]               = useState('eventos'); // 'chat' (general) | 'eventos'
   const [eventos, setEventos]           = useState([]);
@@ -651,9 +696,50 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
   const avisoTimer = useRef(null);
   const activeRoomRef = useRef(activeRoom);
   const contactosRef = useRef(contactos);
+  const usuariosRef = useRef([]);
 
   useEffect(() => { activeRoomRef.current = activeRoom; }, [activeRoom]);
   useEffect(() => { contactosRef.current = contactos; }, [contactos]);
+  useEffect(() => { usuariosRef.current = usuarios; }, [usuarios]);
+
+  // Nombres reales de usuario: evita mostrar el nombre de un evento donde
+  // debería ir el nombre de la persona.
+  const cargarNombresUsuarios = useCallback(async () => {
+    if (usuariosRef.current.length > 0) return usuariosRef.current;
+    try {
+      const token = await getToken();
+      const res = await axios.get(`${API_BASE_URL}/users`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const lista = Array.isArray(res.data) ? res.data : (res.data?.users || []);
+      usuariosRef.current = lista;
+      return lista;
+    } catch (e) {
+      return usuariosRef.current;
+    }
+  }, []);
+
+  // Nombre real del remitente; solo si no existe, usa el que trae la alerta.
+  const resolverNombreUsuario = useCallback(async (idUsuario, nombreSugerido) => {
+    const id = String(idUsuario ?? '').trim();
+    if (!id) return nombreSugerido || null;
+
+    const lista = await cargarNombresUsuarios();
+    const u = lista.find(x => String(x.idusuario ?? x.id) === id);
+    if (u) {
+      const nombre = nombreCompletoDe(u);
+      if (nombre) return nombre;
+    }
+
+    const contacto = contactosRef.current.find(c => String(c.idusuario) === id);
+    if (contacto) {
+      const nombre = nombreCompletoDe(contacto);
+      if (nombre) return nombre;
+    }
+
+    const sugerido = String(nombreSugerido || '').trim();
+    return sugerido || `Usuario ${id}`;
+  }, [cargarNombresUsuarios]);
 
   useEffect(() => {
     if (!userId) return;
@@ -718,13 +804,19 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
     }
   };
 
-  const abrirAviso = () => {
+  const abrirAviso = async () => {
     if (!aviso) return;
-    const roomId = String(aviso.roomId);
+    const actual = aviso;
+    const roomId = String(actual.roomId);
     setAviso(null);
-    if (roomId === 'general') { setVista('chat'); setEventoActual(null); setChatPrivado(null); return; }
+
+    if (roomId === 'general') {
+      setVista('chat'); setEventoActual(null); setChatPrivado(null);
+      return;
+    }
     if (roomId.startsWith('private_')) {
-      setChatPrivado({ idusuario: String(aviso.userId), nombre: aviso.userName || 'Usuario', roomId });
+      const nombre = await resolverNombreUsuario(actual.userId, actual.userName);
+      setChatPrivado({ idusuario: String(actual.userId), nombre: nombre || 'Usuario', roomId });
       return;
     }
     irAEvento(roomId);
@@ -850,17 +942,34 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
 
   useEffect(() => {
     if (!comandoAbrirPrivado || !comandoAbrirPrivado.idusuario || !userId) return;
+    let vigente = true;
+    const aplicar = async () => {
+      const idusuario = String(comandoAbrirPrivado.idusuario);
+      const roomId = roomPrivadaId(userId, idusuario);
+      const nombre = await resolverNombreUsuario(idusuario, comandoAbrirPrivado.nombre);
+      if (!vigente) return;
+      setChatPrivado({ idusuario, nombre: nombre || `Usuario ${idusuario}`, roomId });
+    };
     if (!chatPrivado || String(chatPrivado.idusuario) !== String(comandoAbrirPrivado.idusuario)) {
-      const roomId = roomPrivadaId(userId, comandoAbrirPrivado.idusuario);
-      setChatPrivado({
-        idusuario: String(comandoAbrirPrivado.idusuario),
-        nombre: comandoAbrirPrivado.nombre || `Usuario ${comandoAbrirPrivado.idusuario}`,
-        roomId,
-      });
+      aplicar();
     }
     if (onComandoAplicado) onComandoAplicado();
+    return () => { vigente = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [comandoAbrirPrivado, userId]);
+
+  useEffect(() => {
+    if (!comandoAbrirSala) return;
+    const destino = comandoAbrirSala.destino;
+    if (destino === 'general') {
+      setVista('chat'); setEventoActual(null); setChatPrivado(null);
+    } else if (destino === 'evento' && comandoAbrirSala.idevento) {
+      setVista('eventos'); setChatPrivado(null);
+      abrirEvento({ idevento: comandoAbrirSala.idevento });
+    }
+    if (onComandoSalaAplicado) onComandoSalaAplicado();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [comandoAbrirSala]);
 
   const qGrupo = busquedaGrupo.trim().toLowerCase();
   const eventosFiltrados = qGrupo

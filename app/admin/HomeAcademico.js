@@ -560,6 +560,7 @@ const HomeAcademicoScreen = () => {
   const [salaActiva, setSalaActiva] = useState(null);
   const [chatUserId, setChatUserId] = useState(null);
   const [chatAbrir, setChatAbrir] = useState(null);
+  const [chatAbrirSala, setChatAbrirSala] = useState(null);
   const [noLeidos, setNoLeidos] = useState({});
   const totalNoLeidos = Object.values(noLeidos).reduce((acc, n) => acc + (n || 0), 0);
 
@@ -626,9 +627,27 @@ const HomeAcademicoScreen = () => {
       Notification.requestPermission().catch(() => {});
     }
   };
-  const abrirChat = () => {
+  // Abre el chat y, si viene de una alerta, salta directo a esa conversación.
+  const abrirChat = (alerta) => {
     pedirPermisoNotifs();
     setIsChatOpen(true);
+    if (!alerta) return;
+
+    const roomId = String(alerta.roomId ?? '');
+    if (alerta.type === 'private' && alerta.userId) {
+      setChatAbrirSala(null);
+      setChatAbrir({
+        idusuario: String(alerta.userId),
+        nombre: String(alerta.userName || '').trim() || `Usuario ${alerta.userId}`,
+      });
+      return;
+    }
+    setChatAbrir(null);
+    if (roomId === 'general' || alerta.type === 'general') {
+      setChatAbrirSala({ destino: 'general' });
+    } else if (roomId && /^\d+$/.test(roomId)) {
+      setChatAbrirSala({ destino: 'evento', idevento: roomId });
+    }
   };
 
   useEffect(() => {
@@ -1136,7 +1155,7 @@ const adminActions = [
           <TouchableOpacity style={styles.fabAI} onPress={() => setIsAIChatOpen(true)} activeOpacity={0.85}>
             <Ionicons name="hardware-chip-outline" size={22} color={COLORS.white} />
           </TouchableOpacity>
-          <TouchableOpacity style={styles.fab} onPress={abrirChat} activeOpacity={0.85}>
+          <TouchableOpacity style={styles.fab} onPress={() => abrirChat()} activeOpacity={0.85}>
             <Ionicons name="chatbubble-ellipses" size={24} color={COLORS.white} />
             {totalNoLeidos > 0 && (
               <View style={styles.fabBadge}>
@@ -1185,6 +1204,8 @@ const adminActions = [
                 onRoomChange={(r) => { setSalaActiva(r); limpiarNoLeidos(r); }}
                 comandoAbrirPrivado={chatAbrir}
                 onComandoAplicado={() => setChatAbrir(null)}
+                comandoAbrirSala={chatAbrirSala}
+                onComandoSalaAplicado={() => setChatAbrirSala(null)}
               />
             </View>
           </View>

@@ -24,6 +24,31 @@ const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-prod
 
 const TOKEN_KEY = 'adminAuthToken';
 
+// Resuelve la URL de imagen de un layout. GET /layouts ya devuelve
+// `imagenUrl` completa; si solo hay `url_imagen`, la armamos con API_BASE_URL.
+const getLayoutImageUri = (layout) => {
+  if (!layout) return null;
+  if (layout.imagenUrl) return layout.imagenUrl;
+  if (layout.url_imagen) return `${API_BASE_URL}/uploads/${layout.url_imagen}`;
+  return null;
+};
+
+// GET /eventos/:id a veces solo trae `idlayout` sin el objeto Layout completo.
+// Cuando pasa eso buscamos el layout en GET /layouts, que sí incluye imagenUrl.
+const fetchLayoutById = async (token, idlayout) => {
+  if (!idlayout) return null;
+  try {
+    const response = await axios.get(`${API_BASE_URL}/layouts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    const layouts = Array.isArray(response.data) ? response.data : [];
+    return layouts.find(l => l.idlayout === idlayout) || null;
+  } catch (err) {
+    console.error('Error al cargar datos del layout:', err);
+    return null;
+  }
+};
+
 const getTokenAsync = async () => {
   if (Platform.OS === 'web') {
     try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; }
@@ -289,6 +314,17 @@ const EventDetailScreen = () => {
       };
 
       if (!transformedEvent.id) throw new Error('El evento no tiene un ID válido.');
+
+      // Si el evento solo trae `idlayout` (sin url_imagen), cargamos el layout
+      // completo para poder mostrar la imagen elegida.
+      const idlayoutDelEvento = eventData.idlayout || transformedEvent.layout?.idlayout || null;
+      if ((!transformedEvent.layout || !getLayoutImageUri(transformedEvent.layout)) && idlayoutDelEvento) {
+        const layoutCompleto = await fetchLayoutById(token, idlayoutDelEvento);
+        if (layoutCompleto) {
+          transformedEvent.layout = layoutCompleto;
+        }
+      }
+
       setEvent(transformedEvent);
     } catch (err) {
       let errorMessage = `Error al cargar evento: ${err.message}`;
@@ -666,8 +702,8 @@ const EventDetailScreen = () => {
         {event.idfase >= 2 && event.layout && (
           <View style={styles.sectionCard}>
             <SectionHeader icon="grid-outline" title="Layout del Evento" />
-            {event.layout.url_imagen ? (
-              <Image source={{ uri: `https://unibackend-production-a0f8.up.railway.app/uploads/${event.layout.url_imagen}` }} style={styles.layoutImage} resizeMode="contain" />
+            {getLayoutImageUri(event.layout) ? (
+              <Image source={{ uri: getLayoutImageUri(event.layout) }} style={styles.layoutImage} resizeMode="contain" />
             ) : (
               <View style={styles.layoutPlaceholder}>
                 <Ionicons name="image-outline" size={50} color={COLORS.grayText} />
