@@ -188,9 +188,14 @@ const InformeEventoScreen = () => {
         setSatisfaccionReal(informe.indice_satisfaccion_real || '');
         setOtrosResultadosReal(informe.otros_resultados_real || '');
         
-        // CORRECCIÓN 1: Validar estrictamente que sea un Array antes de asignarlo
-        setEgresosReales(Array.isArray(informe.egresos_reales) && informe.egresos_reales.length > 0 ? informe.egresos_reales : [emptyEgresoRow()]);
-        setIngresosReales(Array.isArray(informe.ingresos_reales) && informe.ingresos_reales.length > 0 ? informe.ingresos_reales : [emptyEgresoRow()]);
+        // CORRECCIÓN 1: Validar que sea Array o string que parezca Array
+        const egresosArray = Array.isArray(informe.egresos_reales) ? informe.egresos_reales : 
+          (typeof informe.egresos_reales === 'string' && informe.egresos_reales.startsWith('[') ? JSON.parse(informe.egresos_reales) : []);
+        const ingresosArray = Array.isArray(informe.ingresos_reales) ? informe.ingresos_reales : 
+          (typeof informe.ingresos_reales === 'string' && informe.ingresos_reales.startsWith('[') ? JSON.parse(informe.ingresos_reales) : []);
+          
+        setEgresosReales(egresosArray.length > 0 ? egresosArray : [emptyEgresoRow()]);
+        setIngresosReales(ingresosArray.length > 0 ? ingresosArray : [emptyEgresoRow()]);
         
         setInfoPrensa(informe.info_prensa || '');
         setAnalisisDesviaciones(informe.analisis_desviaciones || '');
