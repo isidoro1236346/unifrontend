@@ -107,7 +107,10 @@ const isInReportWindow = (ev) => {
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '–';
-  const date = dayjs(dateStr);
+  const s = String(dateStr);
+  let date;
+  if (/^\d{4}-\d{2}-\d{2}/.test(s)) date = dayjs(s.slice(0, 10), 'YYYY-MM-DD');
+  else date = dayjs(s);
   if (!date.isValid()) return '–';
   return date.format('DD [de] MMMM, YYYY');
 };
