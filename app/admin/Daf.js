@@ -830,7 +830,6 @@ const saveThemeColor = useCallback(async (color) => {
   };
 
   const adminActions = [
-    { id: 'solicitudes', title: 'Solicitudes', icon: 'document-text-outline', route: '/admin/Solicitudes', color: COLORS.primary, description: 'Aprueba o rechaza eventos en fase 2', badge: 'Nuevo' },
     { id: 'usuarios', title: 'Gestión de Usuarios', icon: 'people-outline', route: '/admin/UsuariosDaf', color: COLORS.warning, description: 'Administración de cuentas de usuario' },
     { id: 'reportes', title: 'Reportes Avanzados', icon: 'bar-chart-outline', route: '/admin/reportes', color: COLORS.secondary, description: 'Generación de reportes detallados' },
     { id: 'recursos', title: 'Inventario', icon: 'construct-outline', route: '/admin/Inventario', color: COLORS.info, description: 'Gestión de recursos del sistema' },
