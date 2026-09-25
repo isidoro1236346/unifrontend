@@ -79,6 +79,22 @@ const LayoutsScreen = () => {
   const [layouts, setLayouts] = useState([]);
   const [loadingLayouts, setLoadingLayouts] = useState(true);
   const [layoutSeleccionado, setLayoutSeleccionado] = useState(null);
+  const [nuevoLayoutId, setNuevoLayoutId] = useState(null);
+  const [toastCreacion, setToastCreacion] = useState(null);
+  const toastTimer = useRef(null);
+
+  const notificarLayoutCreado = (layout) => {
+    if (!layout) return;
+    setNuevoLayoutId(layout.idlayout);
+    setLayoutSeleccionado(layout);
+    setToastCreacion(layout.nombre || 'Layout');
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    toastTimer.current = setTimeout(() => {
+      setToastCreacion(null);
+      setNuevoLayoutId(null);
+    }, 6000);
+  };
+
   const seleccionarImagen = async () => {
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (status !== 'granted') {
@@ -175,7 +191,7 @@ const subirLayout = async () => {
         });
       }
 
-      await axios.post(`${API_BASE_URL}/layouts`, formData, {
+      const response = await axios.post(`${API_BASE_URL}/layouts`, formData, {
         headers: {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
@@ -185,7 +201,8 @@ const subirLayout = async () => {
       Alert.alert('Éxito', 'Layout subido correctamente.');
       setNombreLayout('');
       setImagenUri(null);
-      cargarLayouts();
+      await cargarLayouts();
+      notificarLayoutCreado(response.data?.layout);
 
     } catch (error) {
       console.error('Error al subir layout:', error);
@@ -209,14 +226,15 @@ const subirLayout = async () => {
         return;
       }
 
-      await axios.post(`${API_BASE_URL}/layouts/ia`, { prompt: promptIA, recursos: recursosParaIA() }, {
+      const response = await axios.post(`${API_BASE_URL}/layouts/ia`, { prompt: promptIA, recursos: recursosParaIA() }, {
         headers: { 'Authorization': `Bearer ${token}` },
       });
 
-      Alert.alert('Éxito', 'Layout generado con IA. Ahora puedes usarlo directamente.');
+      Alert.alert('Éxito', 'Layout generado con IA y su imagen fue creada. Ya lo puedes usar directamente.');
       setPromptIA('');
       setRecursosSeleccionados([]);
-      cargarLayouts();
+      await cargarLayouts();
+      notificarLayoutCreado(response.data?.layout);
 
     } catch (error) {
       console.error('Error al generar layout con IA:', error);
@@ -290,6 +308,19 @@ const subirLayout = async () => {
           <Text style={st.hSub}>Planos y distribuciones de tu evento</Text>
         </View>
       </View>
+
+      {/* Banner de confirmación de creación */}
+      {toastCreacion && (
+        <View style={st.toastBanner}>
+          <Ionicons name="checkmark-circle" size={18} color={C.success} />
+          <Text style={st.toastBannerText} numberOfLines={2}>
+            Plano "{toastCreacion}" creado correctamente. Ya puedes usarlo en tu evento.
+          </Text>
+          <TouchableOpacity onPress={() => setToastCreacion(null)} hitSlop={8} activeOpacity={0.7} style={st.toastBannerClose}>
+            <Ionicons name="close" size={16} color={C.t3} />
+          </TouchableOpacity>
+        </View>
+      )}
 
       <ScrollView contentContainerStyle={st.content} showsVerticalScrollIndicator={false}>
 
@@ -499,13 +530,20 @@ const subirLayout = async () => {
           <View style={st.galleryGrid}>
             {layouts.map((layout) => {
               const imgUrl = getLayoutImageUrl(layout);
+              const esNuevo = layout.idlayout === nuevoLayoutId;
               return (
                 <TouchableOpacity
                   key={layout.idlayout}
-                  style={st.galleryCard}
+                  style={[st.galleryCard, esNuevo && st.galleryCardNuevo]}
                   onPress={() => setLayoutSeleccionado(layout)}
                   activeOpacity={0.85}
                 >
+                  {esNuevo && (
+                    <View style={st.nuevoBadge}>
+                      <Ionicons name="sparkles" size={10} color={C.surface} />
+                      <Text style={st.nuevoBadgeText}>NUEVO</Text>
+                    </View>
+                  )}
                   {imgUrl ? (
                     <Image source={{ uri: imgUrl }} style={st.galleryImage} resizeMode="cover" />
                   ) : (
@@ -589,6 +627,20 @@ const st = StyleSheet.create({
   hSub:   { fontSize: 12, color: C.t2, marginTop: 1 },
 
   content: { padding: 16, paddingBottom: 40 },
+
+  toastBanner: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    position: 'absolute', top: 74, left: 12, right: 12, zIndex: 60,
+    backgroundColor: C.successLight, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10,
+    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8, shadowOffset: { width: 0, height: 3 },
+    elevation: 5, borderWidth: 0.5, borderColor: C.success,
+  },
+  toastBannerText: {
+    flex: 1, fontSize: 12.5, color: C.t1, fontWeight: '600', lineHeight: 17,
+  },
+  toastBannerClose: {
+    paddingHorizontal: 3, paddingVertical: 1,
+  },
 
   infoBanner: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
@@ -709,6 +761,17 @@ const st = StyleSheet.create({
     borderWidth: 0.5, borderColor: C.border, overflow: 'hidden',
     shadowColor: '#000', shadowOpacity: 0.04, shadowRadius: 6, shadowOffset: { width: 0, height: 2 },
     elevation: 1,
+  },
+  galleryCardNuevo: {
+    borderWidth: 2, borderColor: C.success, shadowColor: C.success, shadowOpacity: 0.25,
+  },
+  nuevoBadge: {
+    position: 'absolute', top: 6, left: 6, zIndex: 2,
+    flexDirection: 'row', alignItems: 'center', gap: 3,
+    backgroundColor: C.success, borderRadius: 999, paddingHorizontal: 7, paddingVertical: 3,
+  },
+  nuevoBadgeText: {
+    color: C.surface, fontSize: 9, fontWeight: '800', letterSpacing: 0.4, textTransform: 'uppercase',
   },
   galleryImage: {
     width: '100%', height: 110, backgroundColor: C.bg,

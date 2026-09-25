@@ -535,12 +535,18 @@ const programacionEvento = () => {
         showAlert('Error', 'No estás autenticado.');
         return;
       }
-      await axios.post(`${API_BASE_URL}/layouts/ia`, { prompt: promptIA, recursos: recursosParaIA() }, {
+      const response = await axios.post(`${API_BASE_URL}/layouts/ia`, { prompt: promptIA, recursos: recursosParaIA() }, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       showAlert('Éxito', 'Layout generado con IA. Ya está disponible para seleccionar.');
       setPromptIA('');
-      await cargarLayouts(token);
+      setRecursosSeleccionados([]);
+      const layoutsActuales = await cargarLayouts(token);
+      const nuevoId = response.data?.layout?.id;
+      if (nuevoId && isMountedRef.current) {
+        const nuevoLayout = (layoutsActuales || []).find(l => l.idlayout === nuevoId);
+        if (nuevoLayout) setLayoutSeleccionado(nuevoLayout);
+      }
     } catch (error) {
       console.error('Error al generar layout con IA:', error.response?.data || error.message);
       showAlert('Error', 'No se pudo generar el layout con IA.');
@@ -979,35 +985,25 @@ const programacionEvento = () => {
           {ambientes.map((ambiente, index) => (
             <View key={ambiente.key} style={styles.ambienteItemContainer}>
               <View style={styles.ambienteItemHeader}>
-                <Text style={styles.actividadPreviaTitle}>Ambiente #{index + 1}</Text>
+                <Text style={styles.actividadPreviaTitle}>Requisitos Tecnicos #{index + 1}</Text>
                 <TouchableOpacity onPress={() => eliminarAmbiente(index)} style={styles.deleteButton}>
                   <Ionicons name="trash-bin-outline" size={22} color="#c0392b" />
                 </TouchableOpacity>
               </View>
-              <Text style={styles.label}>Nombre del Ambiente</Text>
+              <Text style={styles.label}>Nombre del Requisito Tecnico</Text>
               <View style={styles.inputGroup}>
                 <Ionicons name="business-outline" size={20} style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
                   value={ambiente.nombre}
                   onChangeText={(text) => actualizarAmbiente(index, 'nombre', text)}
-                  placeholder="Nombre Ambiente"
+                  placeholder="Nombre Requisito Tecnico"
                   placeholderTextColor="#aaa"
-                  accessibilityLabel="Nombre del Ambiente"
+                  accessibilityLabel="Nombre del Requisito Tecnico"
                 />
               </View>
               <Text style={styles.label}>Requisito</Text>
-              <View style={styles.inputGroup}>
-                <Ionicons name="checkmark-circle-outline" size={20} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={ambiente.requisito}
-                  onChangeText={(text) => actualizarAmbiente(index, 'requisito', text)}
-                  placeholder="Requisito"
-                  placeholderTextColor="#aaa"
-                  accessibilityLabel="Requisito"
-                />
-              </View>
+              
               <Text style={styles.label}>Observaciones</Text>
               <View style={styles.inputGroup}>
                 <Ionicons name="document-text-outline" size={20} style={styles.inputIcon} />
