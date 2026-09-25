@@ -1002,7 +1002,6 @@ const programacionEvento = () => {
                   accessibilityLabel="Nombre del Requisito Tecnico"
                 />
               </View>
-              <Text style={styles.label}>Requisito</Text>
               
               <Text style={styles.label}>Observaciones</Text>
               <View style={styles.inputGroup}>
