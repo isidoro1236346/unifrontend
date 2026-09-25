@@ -1002,7 +1002,18 @@ const programacionEvento = () => {
                   accessibilityLabel="Nombre del Requisito Tecnico"
                 />
               </View>
-              
+              <Text style={styles.label}>Requisito</Text>
+              <View style={styles.inputGroup}>
+                <Ionicons name="checkmark-circle-outline" size={20} style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  value={ambiente.requisito}
+                  onChangeText={(text) => actualizarAmbiente(index, 'requisito', text)}
+                  placeholder="Caracteristicas del Requisito"
+                  placeholderTextColor="#aaa"
+                  accessibilityLabel="Caracteristicas del Requisito"
+                />
+              </View>
               <Text style={styles.label}>Observaciones</Text>
               <View style={styles.inputGroup}>
                 <Ionicons name="document-text-outline" size={20} style={styles.inputIcon} />
