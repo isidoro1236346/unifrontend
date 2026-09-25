@@ -413,7 +413,6 @@ const MinimalHeader = ({ nombreUsuario, emailUsuario, unreadCount, onNotificatio
       </View>
       <View style={styles.heroDivider} />
       <Text style={styles.headerTitle}>Panel DAF</Text>
-      <Text style={styles.headerSubtitle}>Dirección Administrativa y Financiera · UFT Eventos</Text>
       <View style={styles.heroStatsRow}>
         <View style={styles.heroStat}>
           <View style={[styles.heroStatIcon, { backgroundColor: 'rgba(255,255,255,0.18)' }]}>
