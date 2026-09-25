@@ -346,7 +346,6 @@ const MinimalBottomDock = ({ onLogout, onActionPress, isExpanded, onToggleExpand
   const rotate = rotateAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
 
   const quickActions = [
-    { id: 'solicitudes', title: 'Solicitudes', icon: 'document-text-outline', color: COLORS.primary, action: '/admin/Solicitudes' },
     { id: 'usuarios', title: 'Usuarios', icon: 'people-outline', color: COLORS.warning, action: '/admin/UsuariosDaf' },
     { id: 'aprobados', title: 'Aprobados', icon: 'checkmark-circle-outline', color: COLORS.success, action: '/admin/EventosAprobados' },
     { id: 'reportes', title: 'Reportes', icon: 'bar-chart-outline', color: COLORS.info, action: '/admin/reportes' },
