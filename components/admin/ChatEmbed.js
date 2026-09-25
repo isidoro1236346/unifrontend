@@ -291,6 +291,10 @@ const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, user
       socket.on('receive_message', (msg) => {
         if (!isMounted) return;
         agregarMensaje({ ...msg, roomId: _roomId, id: msg.id || `m_${Date.now()}_${Math.random()}` });
+        // Si el mensaje es de un evento (no es del bot) y tiene eventoId, lo agregamos al set
+        if (!msg.esBot && msg.eventoId && msg.userId != null) {
+          setEventosConMensajeNuevo(prev => new Set(prev).add(String(msg.eventoId)));
+        }
       });
 
       socket.on('private_message', (msg) => {
@@ -703,6 +707,7 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
   const [aviso, setAviso]               = useState(null);
   const [busquedaGrupo, setBusquedaGrupo]   = useState('');
   const [busquedaPersonal, setBusquedaPersonal] = useState('');
+  const [eventosConMensajeNuevo, setEventosConMensajeNuevo] = useState(new Set);
   const avisoTimer = useRef(null);
   const activeRoomRef = useRef(activeRoom);
   const contactosRef = useRef(contactos);
@@ -884,7 +889,13 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
             idsVistos.add(e.idevento);
             return true;
           })
-          .sort((a, b) => (fechaStr(a) || '9999').localeCompare(fechaStr(b) || '9999'));
+          .sort((a, b) => {
+      const aTieneMsg = eventosConMensajeNuevo.has(String(a.idevento));
+      const bTieneMsg = eventosConMensajeNuevo.has(String(b.idevento));
+      if (aTieneMsg && !bTieneMsg) return -1;
+      if (!aTieneMsg && bTieneMsg) return 1;
+      return (fechaStr(a) || '9999').localeCompare(fechaStr(b) || '9999');
+    })
 
         setEventos(eventosUnicos);
 

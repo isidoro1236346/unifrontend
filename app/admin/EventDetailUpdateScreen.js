@@ -382,7 +382,7 @@ const EventDetailScreen = () => {
     }
   };
 
-  // ✅ NUEVO: Función para finalizar el evento y pasarlo a Fase 3
+  // ✅ NUEVO: Función para finalizar el evento y pasarlo a Fase 5 guardando los datos del balance
   const handleFinalizarEvento = async () => {
     Alert.alert(
       'Finalizar Evento',
@@ -400,9 +400,20 @@ const EventDetailScreen = () => {
                 return;
               }
 
+              const egresosReales = event.egresos || [];
+              const ingresosReales = event.ingresos || [];
+              
+              const totalEgresosReal = egresosReales.reduce((sum, e) => sum + (Number(e.total) || 0), 0);
+              const totalIngresosReal = ingresosReales.reduce((sum, i) => sum + (Number(i.total) || 0), 0);
+              const balanceReal = totalIngresosReal - totalEgresosReal;
+
               const response = await axios.put(
                 `${API_BASE_URL}/proyectos/${event.id}/finalizar-informe`,
-                {},
+                {
+                  egresos_reales: egresosReales,
+                  ingresos_reales: ingresosReales,
+                  balance_real: balanceReal,
+                },
                 { headers: { Authorization: `Bearer ${token}` } }
               );
 
