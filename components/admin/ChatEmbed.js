@@ -700,7 +700,6 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
 
   useEffect(() => { activeRoomRef.current = activeRoom; }, [activeRoom]);
   useEffect(() => { contactosRef.current = contactos; }, [contactos]);
-  useEffect(() => { usuariosRef.current = usuarios; }, [usuarios]);
 
   // Nombres reales de usuario: evita mostrar el nombre de un evento donde
   // debería ir el nombre de la persona.
