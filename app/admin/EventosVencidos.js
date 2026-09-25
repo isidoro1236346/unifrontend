@@ -54,7 +54,8 @@ const getDaysRemaining = (eventDate) => {
       const [day, month, year] = eventDate.split('/').map(Number);
       eventDateObj = new Date(year, month - 1, day);
     } else {
-      eventDateObj = new Date(eventDate);
+      const isoMatch = String(eventDate).match(/^(\d{4})-(\d{2})-(\d{2})/);
+      eventDateObj = isoMatch ? new Date(Number(isoMatch[1]), Number(isoMatch[2]) - 1, Number(isoMatch[3])) : new Date(eventDate);
     }
   } else {
     eventDateObj = new Date(eventDate);

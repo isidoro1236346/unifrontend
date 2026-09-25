@@ -34,7 +34,7 @@ const EventoCard = ({ evento }) => (
       <Ionicons name="calendar-outline" size={14} color={COLORS.primary} />
       <Text style={styles.cardText}>
         {evento.fechaevento || evento.date 
-          ? new Date(evento.fechaevento || evento.date).toLocaleDateString() 
+          ? (() => { const v = evento.fechaevento || evento.date; const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v)); const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(v); return isNaN(d.getTime()) ? v : d.toLocaleDateString(); })()
           : 'Fecha por definir'}
       </Text>
     </View>

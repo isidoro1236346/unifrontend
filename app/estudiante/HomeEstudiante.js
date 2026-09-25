@@ -101,7 +101,7 @@ const mapEvento = (e) => {
   
   if (rawDate && rawDate !== '–') {
     try {
-      const d = new Date(rawDate);
+      const d = (() => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(rawDate)); return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(rawDate); })();
       if (!isNaN(d.getTime())) {
         displayDate = d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' });
       } else {
@@ -432,7 +432,7 @@ const HomeEstudianteScreen = () => {
       const eventosFuturos = fase2.filter(e => {
         const fechaStr = e.date || e.fechaevento || e.fecha_inicio || e.fecha;
         if (!fechaStr || fechaStr === '–') return true;
-        const fechaEvento = new Date(fechaStr);
+        const fechaEvento = (() => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(fechaStr)); return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(fechaStr); })();
         if (isNaN(fechaEvento.getTime())) return true;
         fechaEvento.setHours(0, 0, 0, 0);
         return fechaEvento >= hoy;

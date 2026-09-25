@@ -1398,7 +1398,7 @@ const ProyectoEvento = () => {
       .filter(e => e.fechaevento && dayjs(e.fechaevento).isValid())
       .map(e => ({
         fechaISO: e.fechaevento,
-        fecha: dayjs(e.fechaevento).format('DD/MM/YYYY'),
+        fecha: dayjs(fechaSolo(e.fechaevento), 'YYYY-MM-DD').format('DD/MM/YYYY'),
         nombre: e.nombreevento || 'Sin nombre'
       }))
       .sort((a, b) => dayjs(a.fechaISO).diff(dayjs(b.fechaISO)));

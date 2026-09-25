@@ -64,7 +64,8 @@ const deleteTokenAsync = async () => {
 const formatDate = (dateString) => {
   if (!dateString) return 'No especificada';
   try {
-    const date = new Date(dateString);
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateString));
+    const date = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(dateString);
     return date.toLocaleDateString('es-ES', {
       weekday: 'long',
       year: 'numeric',
@@ -86,7 +87,7 @@ const resolveStatus = (rawStatus, rawDateString) => {
   if (['cancelado', 'rechazado'].includes(s)) return 'cancelado';
 
   if (rawDateString) {
-    const fechaEvento = new Date(rawDateString);
+    const fechaEvento = (() => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(rawDateString)); return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(rawDateString); })();
     if (!isNaN(fechaEvento.getTime())) {
       const hoy = new Date();
       hoy.setHours(0, 0, 0, 0);

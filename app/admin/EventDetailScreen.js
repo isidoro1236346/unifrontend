@@ -624,7 +624,9 @@ const GoogleStyleCalendarView = ({ fechaHoraSeleccionada, setFechaHoraSelecciona
   const getEventsForDay = (date) => {
     const dateStr = dayjs(date).format('YYYY-MM-DD');
     return eventos.filter(evento => {
-      const fechaEventoStr = dayjs(evento.fechaevento).format('YYYY-MM-DD');
+      const fechaEventoStr = /^\d{4}-\d{2}-\d{2}/.test(String(evento.fechaevento))
+        ? dayjs(String(evento.fechaevento).slice(0, 10), 'YYYY-MM-DD').format('YYYY-MM-DD')
+        : dayjs(evento.fechaevento).format('YYYY-MM-DD');
       return fechaEventoStr === dateStr;
     });
   };
@@ -1076,7 +1078,12 @@ const [horaSeleccionada, setHoraSeleccionada] = useState(new Date());
 
   const verificarConflictoHorario = (fechaHora) => {
     const fechaFormateada = dayjs(fechaHora).format('YYYY-MM-DD');
-    const eventosEnMismaFecha = eventos.filter(evento => dayjs(evento.fechaevento).format('YYYY-MM-DD') === fechaFormateada);
+    const eventosEnMismaFecha = eventos.filter(evento => {
+      const fd = /^\d{4}-\d{2}-\d{2}/.test(String(evento.fechaevento))
+        ? dayjs(String(evento.fechaevento).slice(0, 10), 'YYYY-MM-DD').format('YYYY-MM-DD')
+        : dayjs(evento.fechaevento).format('YYYY-MM-DD');
+      return fd === fechaFormateada;
+    });
     return eventosEnMismaFecha.filter(evento => {
       const horaEvento = parseHoraEvento(evento.horaevento);
       if (!horaEvento) return false;
@@ -1208,7 +1215,9 @@ const populateFormFromApi = (apiData) => {
 
   // Fecha y hora
   if (apiData.fechaevento) {
-    const fecha = dayjs(apiData.fechaevento);
+    const fecha = /^\d{4}-\d{2}-\d{2}/.test(String(apiData.fechaevento))
+      ? dayjs(String(apiData.fechaevento).slice(0, 10), 'YYYY-MM-DD')
+      : dayjs(apiData.fechaevento);
     const horaParts = (apiData.horaevento || '00:00:00').split(':');
     const hora = parseInt(horaParts[0]) || 0;
     const min = parseInt(horaParts[1]) || 0;
@@ -1379,7 +1388,7 @@ useEffect(() => {
 
   useEffect(() => {
     const selectedDateStr = dayjs(fechaHoraSeleccionada).format('YYYY-MM-DD');
-    const eventsDelDia = eventos.filter(e => e.fechaevento === selectedDateStr);
+    const eventsDelDia = eventos.filter(e => String(e.fechaevento).slice(0, 10) === selectedDateStr);
     setEventosDelDia(eventsDelDia);
   }, [eventos, fechaHoraSeleccionada]);
 

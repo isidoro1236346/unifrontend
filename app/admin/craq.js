@@ -103,7 +103,12 @@ const ProyectoDetalleModal = ({ visible, proyecto, onClose, onAprobar, onRechaza
               <View style={styles.detalleRow}>
                 <Text style={styles.detalleLabel}>Fecha:</Text>
                 <Text style={styles.detalleValue}>
-                  {dayjs(proyecto.fechaevento).format('DD/MM/YYYY')} a las {formatHoraEvento(proyecto.horaevento)}
+                  {(() => {
+                    const fd = /^\d{4}-\d{2}-\d{2}/.test(String(proyecto.fechaevento))
+                      ? dayjs(String(proyecto.fechaevento).slice(0, 10), 'YYYY-MM-DD').format('DD/MM/YYYY')
+                      : dayjs(proyecto.fechaevento).format('DD/MM/YYYY');
+                    return fd;
+                  })()} a las {formatHoraEvento(proyecto.horaevento)}
                 </Text>
               </View>
               <View style={styles.detalleRow}>
@@ -699,9 +704,12 @@ const GoogleStyleCalendarView = ({ fechaHoraSeleccionada, setFechaHoraSelecciona
 
   const getEventsForDay = (date) => {
     const dateStr = dayjs(date).format('YYYY-MM-DD');
-    return eventos.filter(evento => 
-      dayjs(evento.fechaevento).format('YYYY-MM-DD') === dateStr
-    );
+    return eventos.filter(evento => {
+      const fd = /^\d{4}-\d{2}-\d{2}/.test(String(evento.fechaevento))
+        ? dayjs(String(evento.fechaevento).slice(0, 10), 'YYYY-MM-DD').format('YYYY-MM-DD')
+        : dayjs(evento.fechaevento).format('YYYY-MM-DD');
+      return fd === dateStr;
+    });
   };
 
   const navigateMonth = (direction) => {
@@ -1067,9 +1075,12 @@ const fetchNotifications = async () => {
   const verificarConflictoHorario = (fechaHora) => {
     const fechaFormateada = dayjs(fechaHora).format('YYYY-MM-DD');
     
-    const eventosEnMismaFecha = eventos.filter(evento => 
-      dayjs(evento.fechaevento).format('YYYY-MM-DD') === fechaFormateada
-    );
+    const eventosEnMismaFecha = eventos.filter(evento => {
+      const fd = /^\d{4}-\d{2}-\d{2}/.test(String(evento.fechaevento))
+        ? dayjs(String(evento.fechaevento).slice(0, 10), 'YYYY-MM-DD').format('YYYY-MM-DD')
+        : dayjs(evento.fechaevento).format('YYYY-MM-DD');
+      return fd === fechaFormateada;
+    });
     
     const conflictos = eventosEnMismaFecha.filter(evento => {
       const horaEvento = parseHoraEvento(evento.horaevento);
@@ -1149,7 +1160,7 @@ useEffect(() => {
 
   useEffect(() => {
     const selectedDateStr = dayjs(fechaHoraSeleccionada).format('YYYY-MM-DD');
-    const eventsDelDia = eventos.filter(e => e.fechaevento === selectedDateStr);
+    const eventsDelDia = eventos.filter(e => String(e.fechaevento).slice(0, 10) === selectedDateStr);
     setEventosDelDia(eventsDelDia);
   }, [eventos, fechaHoraSeleccionada]);
 

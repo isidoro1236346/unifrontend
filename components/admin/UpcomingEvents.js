@@ -14,7 +14,9 @@ const SectionHeader = ({ title, subtitle, colors }) => (
 
 const getDaysUntil = (dateStr) => {
   if (!dateStr) return null;
-  const eventDate = dayjs(dateStr).startOf('day');
+  const eventDate = /^\d{4}-\d{2}-\d{2}/.test(String(dateStr))
+    ? dayjs(String(dateStr).slice(0, 10), 'YYYY-MM-DD').startOf('day')
+    : dayjs(dateStr).startOf('day');
   if (!eventDate.isValid()) return null;
   return Math.round(eventDate.diff(dayjs().startOf('day'), 'day', true));
 };
@@ -47,7 +49,9 @@ const UpcomingEvents = ({ events = [], onSelectEvent, colors }) => {
         </View>
       ) : (
         upcoming.map((evento, index) => {
-          const eventDate = dayjs(evento.fechaevento);
+          const eventDate = /^\d{4}-\d{2}-\d{2}/.test(String(evento.fechaevento))
+            ? dayjs(String(evento.fechaevento).slice(0, 10), 'YYYY-MM-DD')
+            : dayjs(evento.fechaevento);
           const days = evento.daysUntil ?? 0;
           const urgent = days <= 7;
           return (

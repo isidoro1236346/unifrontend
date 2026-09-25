@@ -230,7 +230,8 @@ const rechazarEvento = async (eventoId, organizadorId, tituloEvento) => {
   };
 
   const formatDate = (dateString) => {
-    const date = new Date(dateString);
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateString));
+    const date = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(dateString);
     return date.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'long',

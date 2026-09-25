@@ -225,7 +225,9 @@ const ProgresoEventoCard = ({ evento, router }) => {
 
   const estRaw = String((evento && evento.estado) || 'pendiente').toLowerCase();
 
-  let finFecha = dayjs(evento.fechaevento);
+  let finFecha = /^\d{4}-\d{2}-\d{2}/.test(String(evento.fechaevento))
+    ? dayjs(String(evento.fechaevento).slice(0, 10), 'YYYY-MM-DD')
+    : dayjs(evento.fechaevento);
   if (finFecha.isValid() && evento.horaevento) {
     const hm = String(evento.horaevento).match(/(\d{1,2}):(\d{1,2})/);
     if (hm) finFecha = finFecha.hour(Number(hm[1])).minute(Number(hm[2]));

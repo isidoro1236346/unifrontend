@@ -55,7 +55,7 @@ const PredictionDashboard = () => {
           {analysis.map((item) => (
             <tr key={item.idevento} style={{ borderBottom: '1px solid #ddd' }}>
               <td style={{ padding: '10px' }}>{item.nombreevento}</td>
-              <td style={{ padding: '10px' }}>{new Date(item.fechaevento).toLocaleDateString()}</td>
+              <td style={{ padding: '10px' }}>{(() => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(item.fechaevento)); const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(item.fechaevento); return isNaN(d.getTime()) ? item.fechaevento : d.toLocaleDateString(); })()}</td>
               <td style={{ padding: '10px' }}>{item.participacion_esperada || 0}</td>
               <td style={{ padding: '10px', fontWeight: 'bold', color: '#007bff' }}>
                 {item.prediccion_ia} asistentes

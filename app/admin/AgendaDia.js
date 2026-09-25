@@ -34,9 +34,12 @@ const AgendaDia = () => {
         });
         const allEvents = await response.json();
         
-        const eventosDelDia = allEvents.filter(evento => 
-          dayjs(evento.fechaevento).isSame(initialDate, 'day')
-        );
+        const eventosDelDia = allEvents.filter(evento => {
+          const fecha = /^\d{4}-\d{2}-\d{2}/.test(String(evento.fechaevento))
+            ? dayjs(String(evento.fechaevento).slice(0, 10), 'YYYY-MM-DD')
+            : dayjs(evento.fechaevento);
+          return fecha.isSame(initialDate, 'day');
+        });
         
         const eventTypeColors = {
           '1': '#C44200', '2': '#3498db', '3': '#2ecc71',
@@ -44,7 +47,9 @@ const AgendaDia = () => {
         };
 
         const formattedEvents = eventosDelDia.map(evento => {
-          const eventDate = dayjs(evento.fechaevento);
+          const eventDate = /^\d{4}-\d{2}-\d{2}/.test(String(evento.fechaevento))
+            ? dayjs(String(evento.fechaevento).slice(0, 10), 'YYYY-MM-DD')
+            : dayjs(evento.fechaevento);
           const [hour, minute] = evento.horaevento.split(':');
           
           const start = eventDate.hour(hour).minute(minute).toDate();

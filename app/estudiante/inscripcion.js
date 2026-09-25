@@ -49,8 +49,14 @@ const getToken = async () => {
   }
 };
 
+const dateOnly = (v) => {
+  if (v == null) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(v));
+  return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(v);
+};
+
 const InscripcionCard = ({ evento, isNext, isPast, onPress }) => {
-  const fecha = evento.fechaevento ? new Date(evento.fechaevento) : null;
+  const fecha = evento.fechaevento ? dateOnly(evento.fechaevento) : null;
   const diaSemana = fecha ? DIAS_SEMANA[fecha.getDay()] : '';
   const hora = evento.horaevento || 'Hora no especificada';
 
@@ -233,8 +239,8 @@ const InscripcionScreen = () => {
 
   const hoy = new Date();
   hoy.setHours(0, 0, 0, 0);
-  const nextEventId = eventos.find(ev => ev.fechaevento && new Date(ev.fechaevento) >= hoy)?.id;
-  const proximosCount = eventos.filter(ev => ev.fechaevento && new Date(ev.fechaevento) >= hoy).length;
+  const nextEventId = eventos.find(ev => ev.fechaevento && dateOnly(ev.fechaevento) >= hoy)?.id;
+  const proximosCount = eventos.filter(ev => ev.fechaevento && dateOnly(ev.fechaevento) >= hoy).length;
   const pasadosCount = eventos.length - proximosCount;
 
   const handleCardPress = (evento) => {
@@ -271,7 +277,7 @@ const InscripcionScreen = () => {
           <InscripcionCard
             evento={item}
             isNext={item.id === nextEventId}
-            isPast={item.fechaevento && new Date(item.fechaevento) < hoy}
+            isPast={item.fechaevento && dateOnly(item.fechaevento) < hoy}
             onPress={() => handleCardPress(item)}
           />
         )}

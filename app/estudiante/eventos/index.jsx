@@ -309,7 +309,7 @@ const confirmarInscripcion = async () => {
     return true;
   }
 
-  const fechaEvento = new Date(fechaStr);
+  const fechaEvento = (() => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(fechaStr)); return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(fechaStr); })();
   const esValida = !isNaN(fechaEvento.getTime());
   console.log('Es válida:', esValida);
 

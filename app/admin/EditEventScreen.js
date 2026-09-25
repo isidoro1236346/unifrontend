@@ -64,7 +64,8 @@ const parseJSONSafe = (str, fallback = []) => {
 
 const formatDateForInput = (dateStr) => {
   if (!dateStr) return '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) return dateStr;
+  const prefix = /^(\d{4})-(\d{2})-(\d{2})/.exec(dateStr);
+  if (prefix) return `${prefix[1]}-${prefix[2]}-${prefix[3]}`;
   try {
     const date = new Date(dateStr);
     return date.toISOString().split('T')[0];
@@ -185,8 +186,12 @@ const EditEventScreen = () => {
     }
     if (!form.fechaevento) {
       newErrors.fechaevento = 'La fecha es obligatoria';
-    } else if (new Date(form.fechaevento) < new Date().setHours(0,0,0,0)) {
-      newErrors.fechaevento = 'La fecha debe ser futura';
+    } else {
+      const fdm = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(form.fechaevento));
+      const fechaSel = fdm ? new Date(Number(fdm[1]), Number(fdm[2]) - 1, Number(fdm[3])) : new Date(form.fechaevento);
+      if (fechaSel < new Date(new Date().setHours(0, 0, 0, 0))) {
+        newErrors.fechaevento = 'La fecha debe ser futura';
+      }
     }
     if (!form.horaevento) {
       newErrors.horaevento = 'La hora es obligatoria';

@@ -48,7 +48,9 @@ const CommitteeEventsList = ({ events, loading, onSelectEvent, colors }) => {
 
     return sorted.filter(e => {
       if (!e.fechaevento) return false;
-      return new Date(e.fechaevento) >= thirtyDaysAgo;
+      const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(e.fechaevento));
+      const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(e.fechaevento);
+      return d >= thirtyDaysAgo;
     });
   }, [events]);
 
@@ -154,11 +156,15 @@ const CommitteeEventsList = ({ events, loading, onSelectEvent, colors }) => {
                   <View style={styles.dateRow}>
                     <Ionicons name="calendar-outline" size={13} color={colors.textTertiary} />
                     <Text style={[styles.dateText, { color: colors.textTertiary }]}>
-                      {new Date(item.fechaevento).toLocaleDateString('es-ES', {
-                        day: '2-digit',
-                        month: 'short',
-                        year: 'numeric'
-                      })}
+                      {(() => {
+                        const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(item.fechaevento));
+                        const d = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(item.fechaevento);
+                        return isNaN(d.getTime()) ? item.fechaevento : d.toLocaleDateString('es-ES', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric'
+                        });
+                      })()}
                     </Text>
                   </View>
                 )}

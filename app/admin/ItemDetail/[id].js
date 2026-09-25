@@ -86,7 +86,8 @@ const STATUS_META = {
 const formatDate = (dateString) => {
   if (!dateString) return 'No especificada';
   try {
-    const date = new Date(dateString);
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dateString));
+    const date = m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3])) : new Date(dateString);
     return date.toLocaleDateString('es-ES', {
       year: 'numeric',
       month: 'long',
