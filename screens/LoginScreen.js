@@ -22,7 +22,7 @@ const handleLogin = async () => {
       const trimmedUsername = username.trim();
       const trimmedPassword = password.trim();
       console.log("send",{trimmedUsername,trimmedPassword});
-    const response = await axios.post((process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app') + '/auth/login', { 
+    const response = await axios.post((process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app') + '/auth/login', { 
       email: trimmedUsername,
       password: trimmedPassword }, {
       timeout: 5000,

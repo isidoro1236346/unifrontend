@@ -14,7 +14,7 @@ import {useTheme} from '../../context/ThemeContext'
 
 //const API_BASE_URL =  'https://evento.cidtec-uc.com';
 //const API_BASE_URL =  'https://unifrontend.onrender.com';
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-a0f8.up.railway.app';
+const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
 const TOKEN_KEY = 'adminAuthToken';
 const BOT_USERNAME = 'EventUniBot';
 
@@ -379,7 +379,7 @@ const MinimalBottomDock = ({ onLogout, onActionPress, isExpanded, onToggleExpand
   );
 };
 
-const MinimalHeader = ({ nombreUsuario, emailUsuario, unreadCount, onNotificationPress, lastUpdated, onRefresh, refreshing, onTelegramPress, isTelegramLinked, dafCounts }) => {
+const MinimalHeader = ({ nombreUsuario, emailUsuario, unreadCount, onNotificationPress, lastUpdated, onRefresh, refreshing, onTelegramPress, isTelegramLinked, dafCounts, dafCountsError }) => {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
   return (
@@ -419,7 +419,7 @@ const MinimalHeader = ({ nombreUsuario, emailUsuario, unreadCount, onNotificatio
             <Ionicons name="people-outline" size={16} color="#fff" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.heroStatValue}>{dafCounts.total}</Text>
+            <Text style={styles.heroStatValue}>{dafCountsError ? '—' : dafCounts.total}</Text>
             <Text style={styles.heroStatLabel}>Cuentas DAF</Text>
           </View>
         </View>
@@ -429,7 +429,7 @@ const MinimalHeader = ({ nombreUsuario, emailUsuario, unreadCount, onNotificatio
             <Ionicons name="checkmark-circle-outline" size={16} color="#fff" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.heroStatValue}>{dafCounts.activos}</Text>
+            <Text style={styles.heroStatValue}>{dafCountsError ? '—' : dafCounts.activos}</Text>
             <Text style={styles.heroStatLabel}>Activas</Text>
           </View>
         </View>
@@ -439,11 +439,21 @@ const MinimalHeader = ({ nombreUsuario, emailUsuario, unreadCount, onNotificatio
             <Ionicons name="close-circle-outline" size={16} color="#fff" />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={styles.heroStatValue}>{dafCounts.inactivos}</Text>
+            <Text style={styles.heroStatValue}>{dafCountsError ? '—' : dafCounts.inactivos}</Text>
             <Text style={styles.heroStatLabel}>Inactivas</Text>
           </View>
         </View>
       </View>
+      {dafCountsError ? (
+        <View style={styles.countsErrorRow}>
+          <Ionicons name="alert-circle-outline" size={14} color="#FFD7D7" />
+          <Text style={styles.countsErrorText} numberOfLines={2}>
+            No se pudieron cargar las cuentas DAF
+            {dafCountsError.status ? ` (HTTP ${dafCountsError.status})` : ''}
+            {dafCountsError.detalle ? `: ${dafCountsError.detalle}` : ''}
+          </Text>
+        </View>
+      ) : null}
       {lastUpdated ? (
         <Text style={styles.lastUpdatedText}>
           Actualizado: {lastUpdated.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' })}
@@ -500,6 +510,7 @@ const Daf = () => {
 
   const unreadCount = notifications.filter(n => !n.read).length;
   const [dafCounts, setDafCounts] = useState({ total: 0, activos: 0, inactivos: 0 });
+  const [dafCountsError, setDafCountsError] = useState(null);
 
   const [selectedDay, setSelectedDay] = useState(null);
   const [viewMonth, setViewMonth] = useState(() => {
@@ -655,20 +666,34 @@ const saveThemeColor = useCallback(async (color) => {
       const token = await getTokenAsync();
       if (!token) { Alert.alert('Error', 'Por favor, inicia sesión nuevamente'); return; }
 
-      const [dashRes, eventsRes, notifsRes, daFUsersRes] = await Promise.all([
+      const [dashRes, eventsRes, notifsRes, dafResult] = await Promise.all([
         axios.get(`${API_BASE_URL}/dashboard/stats`, { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }),
         axios.get(`${API_BASE_URL}/eventos`,          { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }),
         axios.get(`${API_BASE_URL}/notificaciones`,   { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }).catch(() => ({ data: [] })),
-        axios.get(`${API_BASE_URL}/users/daf`,        { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 }).catch(() => ({ data: [] })),
+        // Este endpoint NO debe tragarse el error: si falla, mostrar el motivo real
+        // en vez de reportar 0 cuentas (que parece un panel vacío, no una caída).
+        axios.get(`${API_BASE_URL}/users/daf`,        { headers: { Authorization: `Bearer ${token}` }, timeout: 10000 })
+          .then(res => ({ res }))
+          .catch(err => ({ err })),
       ]);
 
-      const dafUsersRaw = Array.isArray(daFUsersRes.data) ? daFUsersRes.data : (daFUsersRes.data?.data || []);
-      const dafActivos = dafUsersRaw.filter(u => !(u.habilitado === 0 || u.habilitado === false || u.habilitado === '0' || u.habilitado === 'false')).length;
-      setDafCounts({
-        total: dafUsersRaw.length,
-        activos: dafActivos,
-        inactivos: Math.max(0, dafUsersRaw.length - dafActivos),
-      });
+      if (dafResult.err) {
+        const status   = dafResult.err.response?.status;
+        const detalle  = dafResult.err.response?.data?.message
+                      || dafResult.err.response?.data?.error
+                      || dafResult.err.message;
+        console.error('Error cargando cuentas DAF:', status, detalle);
+        setDafCountsError({ status, detalle });
+      } else {
+        setDafCountsError(null);
+        const dafUsersRaw = Array.isArray(dafResult.res.data) ? dafResult.res.data : (dafResult.res.data?.data || []);
+        const dafActivos = dafUsersRaw.filter(u => !(u.habilitado === 0 || u.habilitado === false || u.habilitado === '0' || u.habilitado === 'false')).length;
+        setDafCounts({
+          total: dafUsersRaw.length,
+          activos: dafActivos,
+          inactivos: Math.max(0, dafUsersRaw.length - dafActivos),
+        });
+      }
 
       const data = dashRes.data;
       setStats(data);
@@ -854,6 +879,7 @@ const saveThemeColor = useCallback(async (color) => {
           onTelegramPress={() => setShowTelegramModal(true)}
           isTelegramLinked={isTelegramLinked}
           dafCounts={dafCounts}
+          dafCountsError={dafCountsError}
         />
 
         {/* ── KPIs ── */}
@@ -1296,6 +1322,12 @@ const styles = StyleSheet.create({
   heroStatValue: { fontSize: 17, fontWeight: '800', color: '#fff', lineHeight: 18 },
   heroStatLabel: { fontSize: 10, color: 'rgba(255,255,255,0.8)', marginTop: 1 },
   lastUpdatedText: { fontSize: 11, color: 'rgba(255,255,255,0.65)', marginTop: 6 },
+  countsErrorRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 6,
+    marginTop: 8, paddingHorizontal: 8, paddingVertical: 6,
+    backgroundColor: 'rgba(239,68,68,0.30)', borderRadius: 8,
+  },
+  countsErrorText: { flex: 1, fontSize: 11, color: '#FFE4E4', lineHeight: 15 },
   notifBadge: {
     position: 'absolute', top: 2, right: 2,
     backgroundColor: COLORS.white, borderRadius: 10,
