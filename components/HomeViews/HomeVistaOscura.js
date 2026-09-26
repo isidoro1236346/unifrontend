@@ -25,20 +25,20 @@ import {
   useHomeEvents,
 } from './homeShared';
 
-// ── VISTA 3 · "EDITORIAL DARK" ──
-// Estilo premium oscuro: hero con imagen de fondo, chips de vidrio
+// ── VISTA 1 · "EDITORIAL LIGHT" ──
+// Estilo premium claro: hero con imagen de fondo, chips de vidrio
 // (glassmorphism) y eventos como lista editorial con fecha en formato
 // de agenda de gran formato.
 
 const COLORS = {
   primary: '#FF7A45',
   primarySoft: 'rgba(255,122,69,0.16)',
-  bg: '#0E1219',
-  surface: '#151B26',
-  line: 'rgba(255,255,255,0.10)',
-  text: '#F5F7FA',
-  textMid: '#AEB6C4',
-  textLight: '#7C8798',
+  bg: '#fff',
+  surface: '#f8f9fa',
+  line: 'rgba(0,0,0,0.10)',
+  text: '#111',
+  textMid: '#666',
+  textLight: '#999',
 };
 
 export default function HomeVistaOscura() {
@@ -263,9 +263,9 @@ const styles = StyleSheet.create({
   ghostBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44,
     paddingHorizontal: 14, borderRadius: 22,
-    borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', backgroundColor: 'rgba(255,255,255,0.08)',
+    borderWidth: 1, borderColor: 'rgba(0,0,0,0.15)', backgroundColor: 'rgba(0,0,0,0.03)',
   },
-  ghostBtnText: { color: '#fff', fontSize: 12, fontWeight: '700' },
+  ghostBtnText: { color: '#111', fontSize: 12, fontWeight: '700' },
   heroBody: { alignItems: 'flex-start' },
   ctaBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 48,
@@ -277,7 +277,7 @@ const styles = StyleSheet.create({
   section: { paddingHorizontal: 20, paddingTop: 26 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
   sectionLabel: { color: COLORS.primary, fontSize: 10, fontWeight: '800', letterSpacing: 1.6 },
-  sectionTitle: { color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 4 },
+  sectionTitle: { color: '#111', fontSize: 22, fontWeight: '800', marginTop: 4 },
 
   // Facultades grid (bento dark)
   facGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   facBody: { position: 'absolute', left: 12, bottom: 12, right: 12, gap: 3 },
-  facName: { color: '#fff', fontSize: 12.5, fontWeight: '700', lineHeight: 16 },
+  facName: { color: '#111', fontSize: 12.5, fontWeight: '700', lineHeight: 16 },
   facSigla: { color: '#FFB38C', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
 
   countChip: { backgroundColor: COLORS.primarySoft, borderWidth: 1, borderColor: 'rgba(255,122,69,0.4)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 18 },
@@ -312,11 +312,11 @@ const styles = StyleSheet.create({
   itemMonth: { color: COLORS.textMid, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   itemBody: { flex: 1 },
   itemCat: { color: COLORS.primary, fontSize: 8, fontWeight: '800', letterSpacing: 1.4, marginBottom: 6 },
-  itemTitle: { color: '#fff', fontSize: 15, fontWeight: '700', lineHeight: 20, marginBottom: 5 },
+  itemTitle: { color: '#111', fontSize: 15, fontWeight: '700', lineHeight: 20, marginBottom: 5 },
   itemMeta: { color: COLORS.textMid, fontSize: 11, fontWeight: '500', lineHeight: 16 },
 
   emptyBox: { alignItems: 'center', gap: 8, padding: 34, backgroundColor: COLORS.surface, borderRadius: 20, borderWidth: 1, borderColor: COLORS.line },
-  emptyTitle: { color: '#fff', fontSize: 15, fontWeight: '700', marginTop: 4 },
+  emptyTitle: { color: '#111', fontSize: 15, fontWeight: '700', marginTop: 4 },
   emptySub: { color: COLORS.textMid, fontSize: 12, textAlign: 'center' },
 
   // CTA banner
@@ -325,7 +325,7 @@ const styles = StyleSheet.create({
     marginTop: 28, marginHorizontal: 20, padding: 18, borderRadius: 20,
     backgroundColor: COLORS.primarySoft, borderWidth: 1, borderColor: 'rgba(255,122,69,0.35)',
   },
-  ctaBannerTitle: { color: '#fff', fontSize: 15, fontWeight: '800', marginBottom: 4 },
+  ctaBannerTitle: { color: '#111', fontSize: 15, fontWeight: '800', marginBottom: 4 },
   ctaBannerSub: { color: COLORS.textMid, fontSize: 11, lineHeight: 16 },
   ctaBannerBtn: { backgroundColor: COLORS.primary, paddingHorizontal: 18, minHeight: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   ctaBannerBtnText: { color: COLORS.bg, fontSize: 13, fontWeight: '800' },
