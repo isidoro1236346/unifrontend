@@ -32,6 +32,10 @@ import {
 
 const COLORS = {
   primary: '#FF7A45',
+  // primary es demasiado claro para texto sobre blanco (~2.4:1). accentText es
+  // el mismo naranja oscurecido para títulos, etiquetas e iconos sobre fondo
+  // claro; primary se queda solo para rellenos con texto blanco encima.
+  accentText: '#C2410C',
   primarySoft: 'rgba(255,122,69,0.16)',
   bg: '#fff',
   surface: '#f8f9fa',
@@ -78,7 +82,7 @@ export default function HomeVistaOscura() {
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
-      <StatusBar style="light" />
+      <StatusBar style="dark" />
       <ScrollView ref={scrollRef} showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
         {/* HERO */}
         <ImageBackground
@@ -87,7 +91,7 @@ export default function HomeVistaOscura() {
           resizeMode="cover"
         >
           <LinearGradient
-            colors={['rgba(14,18,25,0.55)', 'rgba(14,18,25,0.4)', 'rgba(14,18,25,0.96)']}
+            colors={['rgba(255,255,255,0.88)', 'rgba(255,255,255,0.74)', 'rgba(255,255,255,0.96)']}
             style={styles.heroGradient}
           >
             <View style={styles.heroTop}>
@@ -100,7 +104,7 @@ export default function HomeVistaOscura() {
                 style={({ pressed }) => [styles.ghostBtn, pressed && styles.pressed]}
                 onPress={() => router.push('/Login')}
               >
-                <Ionicons name="person-outline" size={15} color="#fff" />
+                <Ionicons name="person-outline" size={15} color="#111" />
                 <Text style={styles.ghostBtnText}>Iniciar sesión</Text>
               </Pressable>
             </View>
@@ -142,7 +146,7 @@ export default function HomeVistaOscura() {
                 >
                   <Image source={cat.image} style={styles.facImage} resizeMode="cover" />
                   <LinearGradient
-                    colors={['rgba(14,18,25,0.45)', 'rgba(14,18,25,0.7)', 'rgba(8,11,17,0.92)']}
+                    colors={['rgba(255,255,255,0.10)', 'rgba(255,255,255,0.55)', 'rgba(255,255,255,0.93)']}
                     style={styles.facGradient}
                   />
                   {active && (
@@ -151,7 +155,7 @@ export default function HomeVistaOscura() {
                     </View>
                   )}
                   <View style={styles.facBody}>
-                    <Ionicons name={cat.icon} size={16} color="#FFB38C" />
+                    <Ionicons name={cat.icon} size={16} color={COLORS.accentText} />
                     <Text style={styles.facName} numberOfLines={2}>{cat.name}</Text>
                     <Text style={styles.facSigla}>{cat.sigla}</Text>
                   </View>
@@ -259,7 +263,7 @@ const styles = StyleSheet.create({
   heroTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   brandLockup: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brandDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: COLORS.primary },
-  brand: { color: '#fff', fontSize: 14, fontWeight: '800', letterSpacing: 2 },
+  brand: { color: '#111', fontSize: 14, fontWeight: '800', letterSpacing: 2 },
   ghostBtn: {
     flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 44,
     paddingHorizontal: 14, borderRadius: 22,
@@ -276,10 +280,10 @@ const styles = StyleSheet.create({
   // Sections
   section: { paddingHorizontal: 20, paddingTop: 26 },
   sectionHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 },
-  sectionLabel: { color: COLORS.primary, fontSize: 10, fontWeight: '800', letterSpacing: 1.6 },
+  sectionLabel: { color: COLORS.accentText, fontSize: 10, fontWeight: '800', letterSpacing: 1.6 },
   sectionTitle: { color: '#111', fontSize: 22, fontWeight: '800', marginTop: 4 },
 
-  // Facultades grid (bento dark)
+  // Facultades grid
   facGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
   facCard: {
     height: 118, borderRadius: 18, overflow: 'hidden',
@@ -294,11 +298,12 @@ const styles = StyleSheet.create({
     alignItems: 'center', justifyContent: 'center',
   },
   facBody: { position: 'absolute', left: 12, bottom: 12, right: 12, gap: 3 },
+  // El velo de facGradient es blanco, así que el texto va en oscuro.
   facName: { color: '#111', fontSize: 12.5, fontWeight: '700', lineHeight: 16 },
-  facSigla: { color: '#FFB38C', fontSize: 9, fontWeight: '800', letterSpacing: 1 },
+  facSigla: { color: COLORS.accentText, fontSize: 9, fontWeight: '800', letterSpacing: 1 },
 
   countChip: { backgroundColor: COLORS.primarySoft, borderWidth: 1, borderColor: 'rgba(255,122,69,0.4)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 18 },
-  countChipText: { color: COLORS.primary, fontSize: 13, fontWeight: '800' },
+  countChipText: { color: COLORS.accentText, fontSize: 13, fontWeight: '800' },
 
   // List editorial
   list: { backgroundColor: COLORS.surface, borderRadius: 20, paddingHorizontal: 16, overflow: 'hidden', borderWidth: 1, borderColor: COLORS.line },
@@ -308,10 +313,10 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1, borderBottomColor: COLORS.line,
   },
   itemDate: { width: 52, alignItems: 'center' },
-  itemDay: { color: COLORS.primary, fontSize: 28, fontWeight: '900', lineHeight: 30 },
+  itemDay: { color: COLORS.accentText, fontSize: 28, fontWeight: '900', lineHeight: 30 },
   itemMonth: { color: COLORS.textMid, fontSize: 10, fontWeight: '800', letterSpacing: 1 },
   itemBody: { flex: 1 },
-  itemCat: { color: COLORS.primary, fontSize: 8, fontWeight: '800', letterSpacing: 1.4, marginBottom: 6 },
+  itemCat: { color: COLORS.accentText, fontSize: 8, fontWeight: '800', letterSpacing: 1.4, marginBottom: 6 },
   itemTitle: { color: '#111', fontSize: 15, fontWeight: '700', lineHeight: 20, marginBottom: 5 },
   itemMeta: { color: COLORS.textMid, fontSize: 11, fontWeight: '500', lineHeight: 16 },
 

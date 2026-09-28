@@ -207,7 +207,7 @@ const InputPanel = ({ input, setInput, onSend, connected }) => {
   );
 };
 
-const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, userName, onVolver, onRoomChange }) => {
+const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, userName, onVolver, onRoomChange, onPrivadoLeido = null }) => {
   const [messages, setMessages]   = useState([]);
   const [input, setInput]         = useState('');
   const [connected, setConnected] = useState(false);
@@ -297,6 +297,20 @@ const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, user
           });
           setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
         });
+
+      // El backend salda las notificaciones pendientes al abrir la sala
+      // privada y avisa cuántas eran. Sirve para limpiar el contador de la
+      // lista: antes solo se limpiaba con el evento de cambio de sala, que se
+      // dispara también al salir, y dejaba el badge desfasado.
+      socket.on('private_read', (info) => {
+        if (!isMounted) return;
+        const sala = info && info.roomId ? String(info.roomId) : String(_roomId);
+        if (onPrivadoLeido) {
+          try {
+            onPrivadoLeido(sala, info && info.marcados ? info.marcados : 0);
+          } catch (e) {}
+        }
+      });
 
       socket.on('receive_message', (msg) => {
         if (!isMounted) return;
@@ -652,6 +666,7 @@ const VistaEvento = ({ evento, userId, userRole, userName, onVolver, onRoomChang
           userId={userId} userRole={userRole} userName={userName}
           onRoomChange={onRoomChange}
           onVolver={onVolver}
+          onPrivadoLeido={onPrivadoLeido}
         />
       ) : (
         <ScrollView contentContainerStyle={{ padding: 16 }}>
@@ -710,7 +725,7 @@ const VistaEvento = ({ evento, userId, userRole, userName, onVolver, onRoomChang
   );
 };
 
-const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, activeRoom = null, comandoAbrirPrivado = null, onComandoAplicado = null, comandoAbrirSala = null, onComandoSalaAplicado = null }) => {
+  const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, activeRoom = null, comandoAbrirPrivado = null, onComandoAplicado = null, comandoAbrirSala = null, onComandoSalaAplicado = null, onPrivadoLeido = null }) => {
   const [tabMain, setTabMain]           = useState('grupo'); // 'grupo' | 'personal'
   const [vista, setVista]               = useState('eventos'); // 'chat' (general) | 'eventos'
   const [eventos, setEventos]           = useState([]);
@@ -727,9 +742,15 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
   const activeRoomRef = useRef(activeRoom);
   const contactosRef = useRef(contactos);
   const usuariosRef = useRef([]);
+  // Ref para no recrear el socket de la conversación privada en cada cambio de
+  // contador de no leídos: el listener private_read vive en esa conexión.
+  const onPrivadoLeidoRef = useRef(onPrivadoLeido);
+  const onRoomChangeRef = useRef(onRoomChange);
 
   useEffect(() => { activeRoomRef.current = activeRoom; }, [activeRoom]);
   useEffect(() => { contactosRef.current = contactos; }, [contactos]);
+  useEffect(() => { onPrivadoLeidoRef.current = onPrivadoLeido; }, [onPrivadoLeido]);
+  useEffect(() => { onRoomChangeRef.current = onRoomChange; }, [onRoomChange]);
 
   // Nombres reales de usuario: evita mostrar el nombre de un evento donde
   // debería ir el nombre de la persona.
@@ -857,9 +878,6 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
     grupo: Object.keys(noLeidos).reduce((acc, k) => acc + (k.startsWith('private_') ? 0 : (noLeidos[k] || 0)), 0),
     personal: Object.keys(noLeidos).reduce((acc, k) => acc + (k.startsWith('private_') ? (noLeidos[k] || 0) : 0), 0),
   };
-
-  const onRoomChangeRef = useRef(onRoomChange);
-  useEffect(() => { onRoomChangeRef.current = onRoomChange; }, [onRoomChange]);
 
   useEffect(() => {
     if (eventoActual || chatPrivado) return;
@@ -1034,6 +1052,18 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
     ? contactos.filter((c) => `${c.nombre || ''} ${c.apellidopat || ''}`.trim().toLowerCase().includes(qPersonal))
     : contactos;
 
+  // Los chats con mensajes sin leer se suben arriba. Antes el orden era el de
+  // los eventos compartidos, así que una conversación con un mensaje pendiente
+  // quedaba mezclada entre las demás y no se distinguía.
+  const contactosConPendientes = contactosFiltrados.slice().sort((a, b) => {
+    const pa = noLeidos[roomPrivadaId(userId, a.idusuario)] || 0;
+    const pb = noLeidos[roomPrivadaId(userId, b.idusuario)] || 0;
+    if (pa > 0 && pb === 0) return -1;
+    if (pb > 0 && pa === 0) return 1;
+    if (pa > 0 && pb > 0) return pb - pa;
+    return 0;
+  });
+
   let contenido = null;
   if (eventoActual) {
     contenido = (
@@ -1056,6 +1086,7 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
         userId={userId} userRole={userRole} userName={userName}
         onRoomChange={onRoomChangeRef.current}
         onVolver={() => setChatPrivado(null)}
+        onPrivadoLeido={onPrivadoLeidoRef.current}
       />
     );
   }
@@ -1160,7 +1191,7 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
             </View>
           ) : (
             <ScrollView contentContainerStyle={{ padding: 12 }}>
-              {contactosFiltrados.map((c) => {
+              {contactosConPendientes.map((c) => {
               const nombre = nombreDeContacto(c) || `Usuario ${c.idusuario}`;
               const apellido = '';
               const rol = c.rol_comite || 'miembro';
@@ -1174,7 +1205,12 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
                   activeOpacity={0.7}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 12,
-                    backgroundColor: COLORS.white, borderRadius: 12,
+                    // Un chat con pendientes se resalta con fondo y borde: el
+                    // mensaje se perdía entre las demás conversaciones.
+                    backgroundColor: pendPriv > 0 ? '#FFF7ED' : COLORS.white,
+                    borderRadius: 12,
+                    borderWidth: pendPriv > 0 ? 1 : 0,
+                    borderColor: pendPriv > 0 ? COLORS.primary : 'transparent',
                     padding: 14, marginBottom: 8,
                     shadowColor: '#000', shadowOpacity: 0.04,
                     shadowOffset: { width: 0, height: 1 }, shadowRadius: 3, elevation: 1,
@@ -1204,7 +1240,9 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
                     paddingHorizontal: 12, paddingVertical: 6,
                   }}>
                     <Ionicons name="chatbubble-outline" size={14} color={COLORS.primary} />
-                    <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.primary }}>Mensaje</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '600', color: COLORS.primary }}>
+                      {pendPriv > 0 ? `${pendPriv > 99 ? '99+' : pendPriv} sin leer` : 'Mensaje'}
+                    </Text>
                   </View>
                   {pendPriv > 0 && (
                     <View style={{

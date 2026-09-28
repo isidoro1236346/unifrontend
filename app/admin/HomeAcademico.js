@@ -14,6 +14,14 @@ import { CustomLineChart, CustomBarChart } from '../../components/admin/ChartsVi
 import ChatEmbed from '../../components/admin/ChatEmbed';
 import ChatAlertas from '../../components/ChatAlertas';
 import ChatFlotante from '../../components/ChatFlotante';
+import {
+  NotificationState,
+  activarNotificaciones,
+  desactivarNotificaciones,
+  estadoNotificaciones,
+  sincronizarSuscripcion,
+  escucharMensajesDelServiceWorker,
+} from '../../services/webPushService';
 import { PHASES as PROCESO_FASES, resolveCurrentPhase } from '../../components/admin/EventProcessTimeline';
 
 const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
@@ -435,7 +443,7 @@ const MainTabs = ({ active, onChange }) => (
   </View>
 );
 
-const MinimalHeader = ({ nombreUsuario, facultad, unreadCount, onNotificationPress, onRefresh, refreshing, lastUpdated, onTelegramPress, isTelegramLinked }) => {
+const MinimalHeader = ({ nombreUsuario, facultad, unreadCount, onNotificationPress, onRefresh, refreshing, lastUpdated, onTelegramPress, isTelegramLinked, onPushPress, pushActivo, pushNoSoportado }) => {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? 'Buenos días' : hour < 18 ? 'Buenas tardes' : 'Buenas noches';
   return (
@@ -462,6 +470,19 @@ const MinimalHeader = ({ nombreUsuario, facultad, unreadCount, onNotificationPre
           <TouchableOpacity style={styles.headerIconBtn} onPress={onRefresh} disabled={refreshing}>
             {refreshing ? <ActivityIndicator size="small" color="#fff" /> : <Ionicons name="refresh-outline" size={22} color="#fff" />}
           </TouchableOpacity>
+          {!pushNoSoportado ? (
+            <TouchableOpacity
+              style={styles.headerIconBtn}
+              onPress={onPushPress}
+              accessibilityLabel={pushActivo ? 'Desactivar notificaciones' : 'Activar notificaciones'}
+            >
+              <Ionicons
+                name={pushActivo ? 'notifications' : 'notifications-off-outline'}
+                size={22}
+                color={pushActivo ? '#FFD166' : 'rgba(255,255,255,0.6)'}
+              />
+            </TouchableOpacity>
+          ) : null}
           <TouchableOpacity style={styles.headerIconBtn} onPress={onNotificationPress}>
             <Ionicons name="notifications-outline" size={24} color="#fff" />
             {unreadCount > 0 ? (
@@ -581,6 +602,33 @@ const HomeAcademicoScreen = () => {
       const pendChat = res.data.filter(n => String(n.tipo) === 'chat_privado' && !n.read && n.id_relacionado);
       const yo = String(chatUserIdRef.current || '');
       const sala = salaActivaRef.current;
+
+      // Los contadores de no leídos se hidratan desde la tabla `notificacion`.
+      // Antes solo se incrementaban por socket (onUnread), así que tras una
+      // desconexión el mensaje quedaba guardado pero sin contador: se perdía
+      // entre los demás chats de la lista.
+      if (yo) {
+        const porSala = {};
+        pendChat.forEach(n => {
+          const room = 'private_' + [yo, String(n.id_relacionado)].map(Number).sort((a, b) => a - b).join('_');
+          if (sala && String(sala) === room) return;
+          porSala[room] = (porSala[room] || 0) + 1;
+        });
+        setNoLeidos(prev => {
+          // Se conservan los contadores que viennent del socket: la API solo
+          // informa de los chats privados, no de los de evento.
+          const soloPrivados = {};
+          Object.keys(prev).forEach((k) => {
+            if (!k.startsWith('private_')) soloPrivados[k] = prev[k];
+          });
+          const combinado = { ...soloPrivados, ...porSala };
+          const iguales =
+            Object.keys(combinado).length === Object.keys(prev).length &&
+            Object.keys(combinado).every((k) => combinado[k] === prev[k]);
+          return iguales ? prev : combinado;
+        });
+      }
+
       const nuevas = pendChat.filter(n => {
         const room = 'private_' + [yo, String(n.id_relacionado)].map(Number).sort((a, b) => a - b).join('_');
         if (sala && String(sala) === room) return false;
@@ -604,13 +652,110 @@ const HomeAcademicoScreen = () => {
       clearInterval(id);
       if (Platform.OS === 'web' && typeof window !== 'undefined') window.removeEventListener('focus', onFocus);
     };
-  }, [recargarNotificaciones]);
+  }, [recargarNotificaciones, readRefresh]);
+
+  // ── Web Push ──────────────────────────────────────────────────────────────
+  // El socket solo cubre con la pestaña abierta. El push es lo que hace que
+  // llegue el aviso cuando el usuario cerró la app, que era el bug reportado.
+  const [pushActivo, setPushActivo] = useState(false);
+  const [pushNoSoportado, setPushNoSoportado] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    (async () => {
+      try {
+        const estado = await estadoNotificaciones();
+        if (!vivo) return;
+        if (estado === NotificationState.NO_SOPORTADO) {
+          setPushNoSoportado(true);
+          return;
+        }
+        setPushActivo(estado === NotificationState.PERMISO);
+        // Si ya había permiso pero el backend no conoce la suscripción (por
+        // ejemplo se borró la tabla), se vuelve a registrar sin pedir nada.
+        if (estado === NotificationState.PERMISO) {
+          const r = await sincronizarSuscripcion();
+          if (vivo && r === NotificationState.ERROR) setPushActivo(false);
+        }
+      } catch (e) {
+        if (vivo) setPushNoSoportado(true);
+      }
+    })();
+    return () => {
+      vivo = false;
+    };
+  }, []);
+
+  // El service worker avisa por aquí cuando el usuario toca la notificación
+  // con la app ya abierta, para abrir el chat sin crear otra pestaña.
+  useEffect(() => {
+    return escucharMensajesDelServiceWorker((datos) => {
+      const roomId = datos && datos.roomId ? String(datos.roomId) : null;
+      if (roomId && roomId.startsWith('private_')) {
+        const partes = roomId.split('_');
+        const yo = String(chatUserIdRef.current || '');
+        const otro = partes.find((p) => p !== 'private' && String(p) !== yo);
+        setChatAbrirSala(null);
+        if (otro) {
+          setChatAbrir({ idusuario: String(otro), nombre: `Usuario ${otro}` });
+        }
+      } else if (roomId) {
+        setChatAbrir(null);
+        setChatAbrirSala(
+          roomId === 'general' ? { destino: 'general' } : { destino: 'evento', idevento: roomId }
+        );
+      }
+      setIsChatOpen(true);
+    });
+  }, []);
+
+  const togglePush = async () => {
+    if (pushActivo) {
+      const ok = await desactivarNotificaciones();
+      setPushActivo(!ok);
+      if (!ok) {
+        Alert.alert('No se pudo desactivar', 'Inténtalo de nuevo en un momento.');
+      }
+      return;
+    }
+    const res = await activarNotificaciones();
+    if (res.estado === NotificationState.PERMISO) {
+      setPushActivo(true);
+      Alert.alert(
+        'Notificaciones activadas',
+        'Recibirás un aviso incluso si cierras la aplicación.'
+      );
+    } else if (res.estado === NotificationState.DENEGADO) {
+      setPushActivo(false);
+      Alert.alert(
+        'Permiso denegado',
+        'Tu navegador bloqueó las notificaciones. Habilítalas desde los permisos del sitio, en la barra de direcciones.'
+      );
+    } else if (res.estado === NotificationState.NO_SOPORTADO) {
+      setPushNoSoportado(true);
+      Alert.alert(
+        'No disponible',
+        'Las notificaciones necesitan que la app se sirva por HTTPS. En localhost funciona; en http:// el navegador las bloquea.'
+      );
+    } else {
+      Alert.alert('No se pudo activar', 'Revisa los permisos del navegador e inténtalo otra vez.');
+    }
+  };
 
   const marcarnoLeido = (n) => {
     if (!n || !n.roomId) return;
     const k = String(n.roomId);
     setNoLeidos(prev => ({ ...prev, [k]: (prev[k] || 0) + 1 }));
   };
+
+  // El backend confirma cuántas notificaciones se saldaron al abrir la
+  // conversación. Se usa como señal para invalidar la caché de "vistos" y
+  // forzar una recarga en el siguiente polling, en vez de esperar 20 s.
+  // El backend confirma cuántas notificaciones se saldaron al abrir la
+  // conversación. Se usa como señal para invalidar la caché de "vistos" y
+  // forzar una recarga en el siguiente polling, en vez de esperar 20 s.
+  const [readRefresh, setReadRefresh] = useState(0);
+
   const limpiarNoLeidos = (roomId) => {
     if (!roomId) return;
     const k = String(roomId);
@@ -622,14 +767,8 @@ const HomeAcademicoScreen = () => {
     });
   };
 
-  const pedirPermisoNotifs = () => {
-    if (Platform.OS === 'web' && typeof Notification !== 'undefined' && Notification.permission === 'default') {
-      Notification.requestPermission().catch(() => {});
-    }
-  };
   // Abre el chat y, si viene de una alerta, salta directo a esa conversación.
   const abrirChat = (alerta) => {
-    pedirPermisoNotifs();
     setIsChatOpen(true);
     if (!alerta) return;
 
@@ -878,6 +1017,9 @@ const adminActions = [
           lastUpdated={lastUpdated}
           onTelegramPress={() => setShowTelegramModal(true)}
           isTelegramLinked={isTelegramLinked}
+          onPushPress={togglePush}
+          pushActivo={pushActivo}
+          pushNoSoportado={pushNoSoportado}
         />
 
         <View style={{ paddingHorizontal: 20, marginTop: 20 }}>
@@ -1219,6 +1361,16 @@ const adminActions = [
                 onComandoAplicado={() => setChatAbrir(null)}
                 comandoAbrirSala={chatAbrirSala}
                 onComandoSalaAplicado={() => setChatAbrirSala(null)}
+                onPrivadoLeido={(roomId, marcados) => {
+                  limpiarNoLeidos(roomId);
+                  if (marcados > 0) {
+                    // Las filas de `notificacion` ya quedaron como 'leido' en
+                    // el backend. Se fuerza la recarga para que el contador no
+                    // vuelva a hidratarse con lo ya saldado.
+                    vistosChatRef.current.clear();
+                    setReadRefresh((n) => n + 1);
+                  }
+                }}
               />
             </View>
           </View>
@@ -1233,6 +1385,20 @@ const adminActions = [
         chatAbierto={isChatOpen && !!chatUserId}
         onAbrir={abrirChat}
         onUnread={marcarnoLeido}
+        onPendientes={(pendientes) => {
+          setNoLeidos((prev) => {
+            const siguiente = {};
+            Object.keys(prev).forEach((k) => {
+              // Se conservan los chats de evento, que esta fuente no cubre.
+              if (!k.startsWith('private_')) siguiente[k] = prev[k];
+            });
+            Object.keys(pendientes || {}).forEach((k) => {
+              const n = Number(pendientes[k]) || 0;
+              if (n > 0) siguiente[k] = n;
+            });
+            return siguiente;
+          });
+        }}
       />
 
       <ChatFlotante

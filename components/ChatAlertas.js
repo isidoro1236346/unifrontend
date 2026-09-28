@@ -62,10 +62,11 @@ const notificacionNavegador = (titulo, cuerpo) => {
   } catch (e) {}
 };
 
-export default function ChatAlertas({ userId, userRole, userName, activeRoom = null, chatAbierto = false, onAbrir, onUnread = null }) {
+export default function ChatAlertas({ userId, userRole, userName, activeRoom = null, chatAbierto = false, onAbrir, onUnread = null, onPendientes = null }) {
   const [alertas, setAlertas] = useState([]);
   const stateRef = useRef({ activeRoom, chatAbierto });
   const onUnreadRef = useRef(onUnread);
+  const onPendientesRef = useRef(onPendientes);
 
   useEffect(() => {
     stateRef.current = { activeRoom, chatAbierto };
@@ -74,6 +75,10 @@ export default function ChatAlertas({ userId, userRole, userName, activeRoom = n
   useEffect(() => {
     onUnreadRef.current = onUnread;
   }, [onUnread]);
+
+  useEffect(() => {
+    onPendientesRef.current = onPendientes;
+  }, [onPendientes]);
 
   const quitar = (id) => setAlertas(prev => prev.filter(a => a.localId !== id));
 
@@ -104,7 +109,19 @@ export default function ChatAlertas({ userId, userRole, userName, activeRoom = n
           socket.emit('register_user', { userId });
         });
 
-        socket.on('chat_notification', (n) => {
+        // El servidor envía los pendientes por conversación al conectar, para que
+    // los contadores existan desde el primer render en vez de aparecer recién
+    // en el primer polling de 20 s.
+    socket.on('pending_private', (info) => {
+      if (!activo) return;
+      if (onPendientesRef.current && info && info.pendientes) {
+        try {
+          onPendientesRef.current(info.pendientes);
+        } catch (e) {}
+      }
+    });
+
+    socket.on('chat_notification', (n) => {
           if (!activo) return;
           const st = stateRef.current;
           if (st.chatAbierto && st.activeRoom && String(n.roomId) === String(st.activeRoom)) return;
