@@ -583,6 +583,11 @@ const HomeAcademicoScreen = () => {
   const [chatAbrir, setChatAbrir] = useState(null);
   const [chatAbrirSala, setChatAbrirSala] = useState(null);
   const [noLeidos, setNoLeidos] = useState({});
+  // El backend confirma cuántas notificaciones se saldaron al abrir la
+  // conversación. Se usa como señal para invalidar la caché de "vistos" y
+  // forzar una recarga en el siguiente polling, en vez de esperar 20 s.
+  // Debe declararse aquí: el efecto de polling lo consume en sus dependencias.
+  const [readRefresh, setReadRefresh] = useState(0);
   const totalNoLeidos = Object.values(noLeidos).reduce((acc, n) => acc + (n || 0), 0);
 
   const vistosChatRef = useRef(new Set());
@@ -747,14 +752,6 @@ const HomeAcademicoScreen = () => {
     const k = String(n.roomId);
     setNoLeidos(prev => ({ ...prev, [k]: (prev[k] || 0) + 1 }));
   };
-
-  // El backend confirma cuántas notificaciones se saldaron al abrir la
-  // conversación. Se usa como señal para invalidar la caché de "vistos" y
-  // forzar una recarga en el siguiente polling, en vez de esperar 20 s.
-  // El backend confirma cuántas notificaciones se saldaron al abrir la
-  // conversación. Se usa como señal para invalidar la caché de "vistos" y
-  // forzar una recarga en el siguiente polling, en vez de esperar 20 s.
-  const [readRefresh, setReadRefresh] = useState(0);
 
   const limpiarNoLeidos = (roomId) => {
     if (!roomId) return;
