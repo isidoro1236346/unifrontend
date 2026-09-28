@@ -7,13 +7,14 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { io } from 'socket.io-client';
+import * as SecureStore from 'expo-secure-store';
 
 const BACKEND_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
 //const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL || 'https://unibackend-production-9618.up.railway.app';
 const ROL_CONFIG = {
   admin:     { color: '#FF6B35', label: 'Admin',     icono: 'A' },
   creador:   { color: '#007AFF', label: 'Creador',   icono: 'C' },
-  logistica: { color: '#34C759', label: 'Logística', icono: 'L' },
+  logistica: { color: '#34C759', label: 'LogÃ­stica', icono: 'L' },
 };
 
 export default function EventoChatScreen() {
@@ -25,71 +26,114 @@ export default function EventoChatScreen() {
   const [connecting, setConnecting] = useState(true);
   const [connectedUsers, setConnectedUsers] = useState([]);
   const [showUsersModal, setShowUsersModal] = useState(false);
+  // Identidad que confirma el servidor al autenticar. Los parÃ¡metros de la ruta
+  // no son confiables, asÃ­ que "es mÃ­o" se decide contra esto.
+  const [miId, setMiId] = useState(null);
+  const idPropio = miId != null ? miId : userId;
 
   const socketRef   = useRef(null);
   const flatListRef = useRef(null);
 
   useEffect(() => {
-    const socket = io(BACKEND_URL, { transports: ['websocket'] });
-    socketRef.current = socket;
+    let socket;
+    let isMounted = true;
 
-    socket.on('connect', () => {
-      setConnected(true);
-      setConnecting(false);
-      socket.emit('join_event', { eventoId, userId, role: userRole, userName });
-    });
+    const conectar = async () => {
+      // El servidor exige JWT en el handshake: la identidad del chat sale del
+      // token, no de los parÃ¡metros userId/userRole/userName de la ruta.
+      let token;
+      try {
+        token = Platform.OS === 'web'
+          ? sessionStorage.getItem('adminAuthToken')
+          : await SecureStore.getItemAsync('adminAuthToken');
+      } catch (e) {
+        token = null;
+      }
 
-    socket.on('connect_error', () => {
-      setConnected(false);
-      setConnecting(false);
-    });
+      if (!token) {
+        console.warn('evento-chat: sin token de sesiÃ³n');
+        if (isMounted) { setConnected(false); setConnecting(false); }
+        return;
+      }
 
-    socket.on('disconnect', () => setConnected(false));
+      socket = io(BACKEND_URL, { auth: { token }, transports: ['websocket'] });
+      socketRef.current = socket;
 
-    socket.on('history', (historial) => {
-      setMessages(historial.map((m, i) => ({ ...m, id: `h_${i}` })));
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 120);
-    });
+      socket.on('connect', () => {
+        if (!isMounted) return;
+        setConnected(true);
+        setConnecting(false);
+        socket.emit('join_event', { eventoId: String(eventoId) });
+      });
 
-    socket.on('receive_message', (msg) => {
-      setMessages(prev => [...prev, { ...msg, id: `m_${Date.now()}_${Math.random()}` }]);
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 120);
-    });
+      socket.on('connect_error', (err) => {
+        if (!isMounted) return;
+        setConnected(false);
+        setConnecting(false);
+        console.warn('evento-chat: error de conexiÃ³n', err?.message);
+      });
 
-    socket.on('user_joined', ({ userName: nombre, role }) => {
-      setMessages(prev => [...prev, {
-        id: `sys_${Date.now()}`,
-        system: true,
-        text: `${nombre || 'Un usuario'} (${ROL_CONFIG[role]?.label || role}) se unió`
-      }]);
-    });
+      socket.on('disconnect', () => { if (isMounted) setConnected(false); });
 
-    // ✅ NUEVO: Escuchar cuando alguien sale
-    socket.on('user_left', ({ userName: nombre, role }) => {
-      setMessages(prev => [...prev, {
-        id: `sys_${Date.now()}`,
-        system: true,
-        text: `${nombre || 'Un usuario'} (${ROL_CONFIG[role]?.label || role}) salió`
-      }]);
-    });
+      socket.on('personal_channel', (p) => {
+        if (isMounted && p?.userId != null) setMiId(p.userId);
+      });
 
-    // ✅ NUEVO: Escuchar la lista de usuarios conectados
-    socket.on('user_list', (users) => {
-      console.log('👥 Usuarios conectados:', users);
-      setConnectedUsers(users);
-    });
+      socket.on('history', (historial) => {
+        if (!isMounted) return;
+        setMessages((historial || []).map((m, i) => ({ ...m, id: `h_${i}` })));
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: false }), 120);
+      });
+
+      socket.on('receive_message', (msg) => {
+        if (!isMounted) return;
+        setMessages(prev => [...prev, { ...msg, id: `m_${Date.now()}_${Math.random()}` }]);
+        setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 120);
+      });
+
+      socket.on('user_joined', ({ userName: nombre, role }) => {
+        if (!isMounted) return;
+        setMessages(prev => [...prev, {
+          id: `sys_${Date.now()}`,
+          system: true,
+          text: `${nombre || 'Un usuario'} (${ROL_CONFIG[role]?.label || role}) se uniÃ³`
+        }]);
+      });
+
+      // âœ… NUEVO: Escuchar cuando alguien sale
+      socket.on('user_left', ({ userName: nombre, role }) => {
+        if (!isMounted) return;
+        setMessages(prev => [...prev, {
+          id: `sys_${Date.now()}`,
+          system: true,
+          text: `${nombre || 'Un usuario'} (${ROL_CONFIG[role]?.label || role}) saliÃ³`
+        }]);
+      });
+
+      // âœ… NUEVO: Escuchar la lista de usuarios conectados
+      socket.on('user_list', (users) => {
+        console.log('ðŸ‘¥ Usuarios conectados:', users);
+        if (isMounted) setConnectedUsers(users || []);
+      });
+    };
+
+    conectar();
 
     return () => {
-      socket.emit('leave_event', { eventoId });
-      socket.disconnect();
+      isMounted = false;
+      if (socket) {
+        socket.emit('leave_event', { eventoId: String(eventoId) });
+        socket.disconnect();
+      }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eventoId]);
 
   const handleSend = () => {
     const texto = input.trim();
     if (!texto || !socketRef.current?.connected) return;
     socketRef.current.emit('send_message', {
-      eventoId, userId, role: userRole, userName, message: texto
+      eventoId: String(eventoId), message: texto
     });
     setInput('');
   };
@@ -103,7 +147,7 @@ export default function EventoChatScreen() {
       );
     }
 
-    const isMe   = String(item.userId) === String(userId);
+    const isMe   = String(item.userId) === String(idPropio);
     const rolCfg = ROL_CONFIG[item.role] || { color: '#888', label: item.role, icono: '?' };
     const hora   = item.timestamp
       ? new Date(item.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
@@ -120,7 +164,7 @@ export default function EventoChatScreen() {
           {!isMe && (
             <Text style={[styles.senderName, { color: rolCfg.color }]}>
               {item.userName || `Usuario ${item.userId}`}
-              <Text style={styles.roleBadge}> · {rolCfg.label}</Text>
+              <Text style={styles.roleBadge}> Â· {rolCfg.label}</Text>
             </Text>
           )}
           <View style={[styles.bubble, isMe ? styles.bubbleMe : styles.bubbleOther]}>
@@ -148,7 +192,7 @@ export default function EventoChatScreen() {
       {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backBtn} hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-          <Text style={styles.backText}>←</Text>
+          <Text style={styles.backText}>â†</Text>
         </TouchableOpacity>
         <View style={styles.headerCenter}>
           <Text style={styles.headerTitle} numberOfLines={1}>
@@ -156,17 +200,17 @@ export default function EventoChatScreen() {
           </Text>
           <View style={styles.headerStatus}>
             <View style={[styles.statusDot, { backgroundColor: connected ? '#34C759' : '#FF3B30' }]} />
-            <Text style={styles.statusText}>{connected ? 'En línea' : 'Sin conexión'}</Text>
+            <Text style={styles.statusText}>{connected ? 'En lÃ­nea' : 'Sin conexiÃ³n'}</Text>
           </View>
         </View>
 
-        {/* ✅ NUEVO: Botón de usuarios conectados */}
+        {/* âœ… NUEVO: BotÃ³n de usuarios conectados */}
         <TouchableOpacity 
           style={styles.usersBtn}
           onPress={() => setShowUsersModal(true)}
           hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
         >
-          <Text style={styles.usersBtnIcon}>👥</Text>
+          <Text style={styles.usersBtnIcon}>ðŸ‘¥</Text>
           {connectedUsers.length > 0 && (
             <View style={styles.usersBadge}>
               <Text style={styles.usersBadgeText}>{connectedUsers.length}</Text>
@@ -198,7 +242,7 @@ export default function EventoChatScreen() {
           removeClippedSubviews={Platform.OS === 'android'}
           ListEmptyComponent={
             <View style={styles.emptyBox}>
-              <Text style={styles.emptyText}>Aún no hay mensajes.{'\n'}¡Sé el primero en escribir!</Text>
+              <Text style={styles.emptyText}>AÃºn no hay mensajes.{'\n'}Â¡SÃ© el primero en escribir!</Text>
             </View>
           }
         />
@@ -207,7 +251,7 @@ export default function EventoChatScreen() {
           <TextInput
             value={input}
             onChangeText={setInput}
-            placeholder={connected ? 'Escribe un mensaje...' : 'Sin conexión...'}
+            placeholder={connected ? 'Escribe un mensaje...' : 'Sin conexiÃ³n...'}
             placeholderTextColor="#999"
             accessibilityLabel="Escribe un mensaje"
             style={styles.input}
@@ -224,7 +268,7 @@ export default function EventoChatScreen() {
         </View>
       </KeyboardAvoidingView>
 
-      {/* ✅ NUEVO: Modal de usuarios conectados */}
+      {/* âœ… NUEVO: Modal de usuarios conectados */}
       <Modal
         visible={showUsersModal}
         animationType="slide"
@@ -247,7 +291,7 @@ export default function EventoChatScreen() {
                 Usuarios Conectados ({connectedUsers.length})
               </Text>
               <TouchableOpacity onPress={() => setShowUsersModal(false)} accessibilityLabel="Cerrar" accessibilityRole="button" hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}>
-                <Text style={styles.modalCloseBtn}>✕</Text>
+                <Text style={styles.modalCloseBtn}>âœ•</Text>
               </TouchableOpacity>
             </View>
             
@@ -260,7 +304,7 @@ export default function EventoChatScreen() {
               removeClippedSubviews={Platform.OS === 'android'}
               renderItem={({ item }) => {
                 const rolCfg = ROL_CONFIG[item.role] || { color: '#888', label: item.role, icono: '?' };
-                const isMe = String(item.userId) === String(userId);
+                const isMe = String(item.userId) === String(idPropio);
                 
                 return (
                   <View style={styles.userRow}>
@@ -272,7 +316,7 @@ export default function EventoChatScreen() {
                     <View style={styles.userInfo}>
                       <Text style={styles.userName}>
                         {item.userName || `Usuario ${item.userId}`}
-                        {isMe && <Text style={styles.youBadge}> (Tú)</Text>}
+                        {isMe && <Text style={styles.youBadge}> (TÃº)</Text>}
                       </Text>
                       <View style={styles.userRoleContainer}>
                         <View style={[styles.userRoleDot, { backgroundColor: rolCfg.color }]} />
@@ -283,7 +327,7 @@ export default function EventoChatScreen() {
                     </View>
                     <View style={styles.onlineIndicator}>
                       <View style={styles.onlineDot} />
-                      <Text style={styles.onlineText}>En línea</Text>
+                      <Text style={styles.onlineText}>En lÃ­nea</Text>
                     </View>
                   </View>
                 );
@@ -319,7 +363,7 @@ const styles = StyleSheet.create({
   statusDot:    { width: 7, height: 7, borderRadius: 4 },
   statusText:   { fontSize: 11, color: '#888' },
   
-  // ✅ NUEVOS ESTILOS: Botón de usuarios
+  // âœ… NUEVOS ESTILOS: BotÃ³n de usuarios
   usersBtn: {
     position: 'relative',
     padding: 14,
@@ -376,7 +420,7 @@ const styles = StyleSheet.create({
   sendBtnDisabled: { backgroundColor: '#B0C4DE' },
   sendBtnText:     { color: '#FFF', fontWeight: '600', fontSize: 15 },
   
-  // ✅ NUEVOS ESTILOS: Modal de usuarios
+  // âœ… NUEVOS ESTILOS: Modal de usuarios
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',

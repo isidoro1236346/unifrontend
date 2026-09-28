@@ -245,7 +245,16 @@ const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, user
       const mod = await import('socket.io-client');
       const io = mod.io || mod.default;
 
+      // El servidor exige JWT en el handshake: la identidad del chat sale del
+      // token, no de los campos userId/userName que se envían en cada evento.
+      const token = await getToken();
+      if (!token) {
+        if (isMounted) Alert.alert('Sesión expirada', 'Inicia sesión de nuevo para usar el chat.');
+        return;
+      }
+
       socket = io(API_BASE_URL, {
+        auth: { token },
         transports: ['websocket'],
         reconnection: true,
         reconnectionAttempts: 5,
@@ -271,22 +280,23 @@ const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, user
         }
       });
 
-      socket.on('history', (h) => {
-        if (!isMounted) return;
-        if (h.length > 0) {
+        socket.on('history', (h) => {
+          if (!isMounted) return;
+          // El historial del servidor es la fuente de verdad: aplicarlo siempre
+          // evita conservar mensajes del chat anterior o de una reconexión.
+          //
           // Conserva al final los mensajes optimistas aún no confirmados por el
           // servidor y evita duplicar los que ya llegaron dentro del historial.
           setMessages(prev => {
             const pendientes = prev.filter(m => m.pendiente);
             const yaPendientes = new Set(pendientes.map(m => `${m.userId}::${m.message}`));
-            const base = h
+            const base = (h || [])
               .map((m, i) => ({ ...m, id: `h_${i}`, roomId: _roomId }))
               .filter(m => !yaPendientes.has(`${m.userId}::${m.message}`));
             return [...base, ...pendientes];
           });
-        }
-        setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
-      });
+          setTimeout(() => flatRef.current?.scrollToEnd({ animated: false }), 100);
+        });
 
       socket.on('receive_message', (msg) => {
         if (!isMounted) return;
@@ -322,8 +332,13 @@ const VistaChat = ({ eventoId, titulo, subtitulo, roomId, userId, userRole, user
         setTimeout(() => setBotTyping(false), 2000);
       });
 
-      socket.on('connect_error', () => {
-        if (isMounted) setConnected(false);
+      socket.on('connect_error', (err) => {
+        if (!isMounted) return;
+        setConnected(false);
+        const msg = String(err?.message || '');
+        if (/autenticado|Token|token/i.test(msg)) {
+          Alert.alert('Sesión expirada', 'Inicia sesión de nuevo para usar el chat.');
+        }
       });
 
       socket.on('disconnect', () => {
@@ -762,9 +777,11 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange, noLeidos = {}, ac
     const init = async () => {
       try {
         const token = await getToken();
+        if (!token) return;
         const mod = await import('socket.io-client');
         const io = mod.io || mod.default;
         socket = io(API_BASE_URL, {
+          auth: { token },
           transports: ['websocket'],
           reconnection: true,
           reconnectionAttempts: 5,

@@ -85,10 +85,14 @@ export default function ChatAlertas({ userId, userRole, userName, activeRoom = n
     const init = async () => {
       try {
         const token = await getToken();
+        if (!token) return;
         const mod = await import('socket.io-client');
         const io = mod.io || mod.default;
 
+        // El servidor exige JWT en el handshake; sin él la conexión se rechaza
+        // y este socket nunca recibe las notificaciones del chat.
         socket = io(API_BASE_URL, {
+          auth: { token },
           transports: ['websocket'],
           reconnection: true,
           reconnectionAttempts: 5,

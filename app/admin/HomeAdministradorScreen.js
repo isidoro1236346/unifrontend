@@ -6,7 +6,7 @@ import {
 } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
 import Svg, { Line, Circle, Text as SvgText, Path, G, Rect } from 'react-native-svg';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
@@ -660,7 +660,7 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange }) => {
     setMessages([]);
     setVista('chat');
 
-    import('socket.io-client').then(mod => {
+    import('socket.io-client').then(async mod => {
       ioRef.current = mod.io || mod.default;
 
       // Desconectar anterior si existe
@@ -668,7 +668,19 @@ const ChatEmbed = ({ userId, userRole, userName, onRoomChange }) => {
         socketRef.current.disconnect();
       }
 
+      // El servidor exige JWT en el handshake: la identidad del chat sale del
+      // token, no de los campos userId/userName que se envían en cada evento.
+      const token = Platform.OS === 'web'
+        ? sessionStorage.getItem('adminAuthToken')
+        : await SecureStore.getItemAsync('adminAuthToken');
+      if (!token) {
+        Alert.alert('Sesión expirada', 'Inicia sesión de nuevo para usar el chat.');
+        setConnected(false);
+        return;
+      }
+
       const socket = ioRef.current(API_BASE_URL, {
+        auth: { token },
         transports: Platform.OS === 'web' ? ['polling', 'websocket'] : ['websocket']
       });
       socketRef.current = socket;
@@ -1253,6 +1265,21 @@ const HomeAdministradorScreen = () => {
     };
     validateSession();
   }, [router, fetchDashboardData, fetchNotifications, checkTelegramStatus, fetchPredictions]);
+
+  // Refresca los datos cada vez que la pantalla vuelve a tener el foco
+  // (por ejemplo, al regresar de EventosPendientes tras aprobar un evento).
+  const isFirstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
+      fetchDashboardData(true);
+      fetchNotifications();
+      fetchPredictions();
+    }, [fetchDashboardData, fetchNotifications, fetchPredictions])
+  );
 
   const { cardWidth: actionsCardWidth } = useMemo(() => {
     const availableWidth = windowWidth - 40;

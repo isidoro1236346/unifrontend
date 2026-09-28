@@ -5,7 +5,7 @@ import {
   useWindowDimensions, Platform, Modal, Image,
 } from 'react-native';
 import { PieChart } from 'react-native-chart-kit';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
@@ -800,6 +800,19 @@ const HomeAcademicoScreen = () => {
     };
     validateSession();
   }, [fetchDashboardData, router]);
+
+  // Refresca los datos cada vez que la pantalla vuelve a tener el foco
+  // (por ejemplo, al regresar de una lista tras aprobar o rechazar un evento).
+  const isFirstFocus = useRef(true);
+  useFocusEffect(
+    useCallback(() => {
+      if (isFirstFocus.current) {
+        isFirstFocus.current = false;
+        return;
+      }
+      fetchDashboardData(true);
+    }, [fetchDashboardData])
+  );
 
   const markAsRead = async (notifId) => {
     try {
