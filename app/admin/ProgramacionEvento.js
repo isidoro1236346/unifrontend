@@ -1164,7 +1164,7 @@ const programacionEvento = () => {
                       >
                         <View style={styles.recursoImgWrap}>
                           <Image
-                            source={{ uri: `${API_BASE_URL}${recurso.imagenUrl}` }}
+                            source={{ uri: `${API_BASE_URL}${recurso.imagenUrl}?token=${encodeURIComponent(authToken || '')}` }}
                             style={styles.recursoImg}
                             resizeMode="cover"
                           />
@@ -1279,13 +1279,13 @@ const programacionEvento = () => {
                 <Ionicons name="close" size={22} color="#fff" />
               </TouchableOpacity>
             </View>
-            {previewRecurso && (
-              <Image
-                source={{ uri: `${API_BASE_URL}${previewRecurso.imagenUrl}` }}
-                style={styles.previewImage}
-                resizeMode="contain"
-              />
-            )}
+{previewRecurso && (
+<Image
+source={{ uri: `${API_BASE_URL}${previewRecurso.imagenUrl}?token=${encodeURIComponent(authToken || '')}` }}
+style={styles.previewImage}
+resizeMode="contain"
+/>
+)}
           </View>
         </View>
       </Modal>

@@ -1121,7 +1121,7 @@ useEffect(() => {
         return;
       }
       try {
-        const responseRecursos = await axios.get(`${API_BASE_URL}/recursos`, {
+        const responseRecursos = await axios.get(`${API_BASE_URL}/recursos?incluirDeshabilitados=true`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const validResources = responseRecursos.data.filter(recurso => recurso && recurso.id != null);

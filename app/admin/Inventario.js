@@ -75,6 +75,11 @@ const RecursoCard = ({ item, onEdit }) => {
           <Text style={st.cardDesc} numberOfLines={2}>{item.descripcion}</Text>
         ) : null}
 
+        <View style={st.cantidadRow}>
+          <Ionicons name="cube-outline" size={13} color={C.t2} />
+          <Text style={st.cantidadText}>Cantidad: {item.cantidad || 0}</Text>
+        </View>
+
         <View style={st.cardFooter}>
           <View style={[st.tipoBadge, { backgroundColor: ts.bg }]}>
             <Text style={[st.tipoBadgeText, { color: ts.color }]}>{ts.label}</Text>
@@ -105,7 +110,7 @@ const InventarioDAF = () => {
     setLoading(true);
     try {
       const token = await getToken();
-      const res = await axios.get(`${API_BASE_URL}/recursos`, {
+      const res = await axios.get(`${API_BASE_URL}/recursos?incluirDeshabilitados=true`, {
         headers: { Authorization: `Bearer ${token}` },
         timeout: 10000,
       });
@@ -138,7 +143,7 @@ const InventarioDAF = () => {
   // Filtrar por tipo y búsqueda
   const filtered = recursos.filter(r => {
     const matchF = filtro === 'Todos' || r.recurso_tipo === categoriaToTipo[filtro];
-    const matchS = !search || r.nombre_recurso.toLowerCase().includes(search.toLowerCase());
+    const matchS = !search || (r.nombre_recurso || '').toLowerCase().includes(search.toLowerCase());
     return matchF && matchS;
   });
 
@@ -171,7 +176,6 @@ const InventarioDAF = () => {
       <ScrollView
         showsVerticalScrollIndicator={false}
         contentContainerStyle={{ paddingBottom: 40 }}
-        stickyHeaderIndices={loading || filtered.length === 0 ? undefined : undefined}
       >
         {/* Banner informativo */}
         <View style={st.infoBanner}>
@@ -352,6 +356,8 @@ const st = StyleSheet.create({
   editBtn: { padding: 6, borderRadius: 8, backgroundColor: C.primaryLight, marginLeft: 8 },
   cardName: { fontSize: 15, fontWeight: '700', color: C.t1, flex: 1 },
   cardDesc: { fontSize: 13, color: C.t2, marginTop: 3, marginBottom: 8, lineHeight: 18 },
+  cantidadRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginBottom: 8 },
+  cantidadText: { fontSize: 13, color: C.t2, fontWeight: '600' },
   cardFooter: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 },
   tipoBadge: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 20 },
   tipoBadgeText: { fontSize: 12, fontWeight: '600' },

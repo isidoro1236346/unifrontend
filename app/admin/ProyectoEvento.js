@@ -1276,7 +1276,7 @@ const ProyectoEvento = () => {
     const token = await getTokenAsync();
     if (!token) return;
     try {
-      const response = await axios.get(`${API_BASE_URL}/recursos`, { headers: { Authorization: `Bearer ${token}` } });
+      const response = await axios.get(`${API_BASE_URL}/recursos?incluirDeshabilitados=true`, { headers: { Authorization: `Bearer ${token}` } });
       let recursosRaw = response.data;
       if (!Array.isArray(recursosRaw)) {
         recursosRaw = response.data.data || response.data.recursos || [];

@@ -1,5 +1,5 @@
 // app/admin/CrearRecurso.js
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,7 +12,7 @@ import {
   ActivityIndicator,
   Modal,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useFocusEffect } from 'expo-router';
 import { Picker } from '@react-native-picker/picker';
 import axios from 'axios';
@@ -62,6 +62,7 @@ const TIPO_COLORS = {
 
 const Recurso = () => {
   const router = useRouter();
+  const { editId } = useLocalSearchParams();
 
   const [nombre_recurso, setNombreRecurso] = useState('');
   const [recurso_tipo, setRecursoTipo] = useState('tecnologico');
@@ -92,7 +93,7 @@ const Recurso = () => {
       return;
     }
     
-    const response = await axios.get(`${API_BASE_URL}/recursos`, {
+    const response = await axios.get(`${API_BASE_URL}/recursos?incluirDeshabilitados=true`, {
       headers: { 
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json'
@@ -177,6 +178,16 @@ const Recurso = () => {
     setEditCantidad(String(recurso.cantidad ?? '1'));
     setEditModalVisible(true);
   };
+
+  // ── Editar desde Inventario: si vino con editId, abrimos el modal al cargar la lista.
+  const editIdStr = editId ? String(editId) : null;
+  useEffect(() => {
+    if (!editIdStr || listLoading) return;
+    const target = recursos.find(r => String(r.idrecurso) === editIdStr);
+    if (target) {
+      abrirEdicion(target);
+    }
+  }, [editIdStr, recursos, listLoading]);
 
   const guardarEdicion = async () => {
     if (!editNombre.trim()) {
@@ -268,7 +279,9 @@ const Recurso = () => {
         <TouchableOpacity style={styles.editBtn} onPress={() => abrirEdicion(recurso)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
           <Ionicons name="pencil" size={18} color={COLORS.primary} />
         </TouchableOpacity>
-      
+        <TouchableOpacity style={styles.deleteBtn} onPress={() => eliminarRecurso(recurso)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Ionicons name="trash-outline" size={18} color={COLORS.danger} />
+        </TouchableOpacity>
       </View>
     </View>
   );
@@ -277,6 +290,14 @@ const Recurso = () => {
 
   return (
     <ScrollView style={styles.container} keyboardShouldPersistTaps="handled">
+
+      {/* ── Header ─────────────────────────────────────────────────────── */}
+      <View style={styles.header}>
+        <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
+          <Ionicons name="arrow-back" size={20} color={COLORS.textPrimary} />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Creación de Recursos</Text>
+      </View>
 
       {/* ── Formulario Crear ──────────────────────────────────────────── */}
       <View style={styles.section}>
@@ -457,7 +478,29 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
-    padding: 16,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#FFF',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+  },
+  backBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    backgroundColor: COLORS.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 0.5,
+    borderColor: COLORS.border,
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '700',
+    color: COLORS.textPrimary,
   },
   cantidadRow: {
     flexDirection: 'row',
